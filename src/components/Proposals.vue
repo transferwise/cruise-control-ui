@@ -17,7 +17,7 @@
       <async-task :asyncData='asyncData'></async-task>
     </div>
     <div v-if='loading'>
-      Loading {{ loadingSeconds }} ...
+      <div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div> Loading ...</div>
     </div>
     <div v-else-if='loaded'>
       <div class="alert alert-info">
@@ -46,44 +46,53 @@
         </tbody>
       </table>
 
-      <h4>Optimized Load Difference - Per Broker</h4>
-      <table class="table table-sm table-bordered">
+      <h4 class="pointer" @click="showBrokerLoad = !showBrokerLoad">
+        Optimized Load Difference - Per Broker
+        <small class="text-muted">{{ showBrokerLoad ? '(click to hide)' : '(click to show)' }}</small>
+      </h4>
+      <table v-if="showBrokerLoad" class="table table-sm table-bordered">
         <thead class="thead-light">
           <tr>
             <th>Broker ID</th>
-            <th v-for="h in brokerLoad.heading">{{ h }}</th>
+            <th v-for="h in brokerLoad.heading" :key="'bh-'+h">{{ h }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(brokerdata, brokerid) in brokerLoad.records">
+          <tr v-for="(brokerdata, brokerid) in brokerLoad.records" :key="brokerid">
             <th>{{ brokerid }}</th>
-            <td v-for="h in brokerLoad.heading">
+            <td v-for="h in brokerLoad.heading" :key="'bd-'+h">
               <diff-cell :head='h' :cell='brokerdata[h]' :showpct='showpct' />
             </td>
           </tr>
         </tbody>
       </table>
 
-      <h4>Optimized Load Difference - Per Host</h4>
-      <table class="table table-sm table-bordered">
+      <h4 class="pointer" @click="showHostLoad = !showHostLoad">
+        Optimized Load Difference - Per Host
+        <small class="text-muted">{{ showHostLoad ? '(click to hide)' : '(click to show)' }}</small>
+      </h4>
+      <table v-if="showHostLoad" class="table table-sm table-bordered">
         <thead class="thead-light">
           <tr>
             <!-- <th>Host</th> -->
-            <th v-for="h in hostLoad.heading">{{ h }}</th>
+            <th v-for="h in hostLoad.heading" :key="'hh-'+h">{{ h }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(hostdata, host) in hostLoad.records">
+          <tr v-for="(hostdata, host) in hostLoad.records" :key="host">
             <!-- <th>{{ host }}</th> -->
-            <td v-for="h in hostLoad.heading">
+            <td v-for="h in hostLoad.heading" :key="'hd-'+h">
               <diff-cell :head='h' :cell='hostdata[h]' :showpct='showpct' />
             </td>
           </tr>
         </tbody>
       </table>
 
-      <h4>Goals</h4>
-      <table class="table table-sm table-bordered">
+      <h4 class="pointer" @click="showGoals = !showGoals">
+        Goals
+        <small class="text-muted">{{ showGoals ? '(click to hide)' : '(click to show)' }}</small>
+      </h4>
+      <table v-if="showGoals" class="table table-sm table-bordered">
         <thead class="thead-light">
           <tr>
             <th>Goal &amp; Goal Violation Details</th>
@@ -132,6 +141,7 @@ export default {
       errorData: null,
       async: false,
       asyncData: null,
+      asyncRetryTimer: null,
       // top level medatadata
       numReplicaMovements: null,
       recentWindows: null,
@@ -144,12 +154,20 @@ export default {
       goals: {},
       // show percentage diff
       showpct: false,
+      showBrokerLoad: true,
+      showHostLoad: true,
+      showGoals: true,
       showAsyncRefreshButton: false,
       detectedUserTaskId: false // true in case the response has user-task-id
     }
   },
   created () {
     this.getProposals()
+  },
+  beforeDestroy () {
+    if (this.asyncRetryTimer) {
+      clearTimeout(this.asyncRetryTimer)
+    }
   },
   watch: {
     group: function (ogroup, ngroup) {
@@ -300,10 +318,21 @@ export default {
     }
   },
   methods: {
-    argsChanged () {
+    argsChanged (retries) {
+      retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
+      if (!newurl) {
+        if (retries < 20) {
+          setTimeout(() => this.argsChanged(retries + 1), 500)
+        }
+        return
+      }
       this.$store.commit('seturl', newurl)
       this.loaded = false
+      if (this.asyncRetryTimer) {
+        clearTimeout(this.asyncRetryTimer)
+        this.asyncRetryTimer = null
+      }
       this.getProposals()
     },
     getProposals () {
@@ -311,65 +340,79 @@ export default {
       vm.error = false
       vm.async = false
       vm.loading = true
-      let params = {
-        withCredentials: true
+      let fetchOptions = {
+        credentials: 'omit'
       }
       // check if there is a running user-task-id for this end point in the $store
-      // let task = this.$store.getters.getTaskId('proposals')
-      let task = this.task
-      if (this.task) {
-        params['headers'] = {
+      let task = this.taskId
+      if (task) {
+        fetchOptions['headers'] = {
           'User-Task-ID': task
         }
       }
-      vm.$http.get(this.url, params).then((r) => {
+      window.fetch(vm.url, fetchOptions).then((resp) => {
+        let contentType = resp.headers.get('content-type') || ''
+        return resp.text().then((text) => {
+          return { text: text, contentType: contentType, ok: resp.ok, status: resp.status, headers: resp.headers }
+        })
+      }).then((resp) => {
         vm.loading = false
         // set this so that we know if the server sends user-task-id in the response
-        vm.detectedUserTaskId = r.headers.hasOwnProperty('user-task-id')
-        /*
-        vm.$store.commit('setTaskId', {url: vm.url, taskid: Math.random() * 10000})
-        console.log(['gettaskId', vm.$store.getters.getTaskId()])
-        */
-        if (r.data === null || r.data === undefined || r.data === '') {
+        vm.detectedUserTaskId = resp.headers.has('user-task-id')
+        let data = null
+        try {
+          data = JSON.parse(resp.text)
+        } catch (e) {
+          data = resp.text
+        }
+        if (data === null || data === undefined || data === '') {
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
-        } else if (r.headers['content-type'].match(/text\/plain/) || r.data.progress) {
+        } else if (resp.contentType.match(/text\/plain/) || data.progress) {
           // save the task-id if its present in the response header
-          let task = r.headers.hasOwnProperty('user-task-id') ? r.headers['user-task-id'] : null
+          let task = resp.headers.has('user-task-id') ? resp.headers.get('user-task-id') : null
           vm.$store.commit('setTaskId', {url: vm.url, taskid: task}) // save this task for follow-up calls (null deletes in vuex)
           // set the internal bits
           vm.async = true
-          vm.asyncData = r.data
+          vm.asyncData = data
           vm.showAsyncRefreshButton = true
+          if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
+          vm.asyncRetryTimer = setTimeout(() => vm.getProposals(), 5000)
         } else {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.loading = false
           vm.error = false
           // top level metadata in the response
-          vm.numReplicaMovements = r.data.summary.numReplicaMovements
-          vm.recentWindows = r.data.summary.recentWindows
-          vm.dataToMoveMB = r.data.summary.dataToMoveMB
-          vm.monitoredPartitionsPercentage = r.data.summary.monitoredPartitionsPercentage
-          vm.numLeaderMovements = r.data.summary.numLeaderMovements
+          vm.numReplicaMovements = data.summary.numReplicaMovements
+          vm.recentWindows = data.summary.recentWindows
+          vm.dataToMoveMB = data.summary.dataToMoveMB
+          vm.monitoredPartitionsPercentage = data.summary.monitoredPartitionsPercentage
+          vm.numLeaderMovements = data.summary.numLeaderMovements
           // nested maps
-          vm.$set(vm, 'loadBefore', r.data.loadBeforeOptimization)
-          vm.$set(vm, 'loadAfter', r.data.loadAfterOptimization)
+          vm.$set(vm, 'loadBefore', data.loadBeforeOptimization)
+          vm.$set(vm, 'loadAfter', data.loadAfterOptimization)
           // key has been renamed upstream
-          if (r.data.hasOwnProperty('goalSummary')) {
-            vm.$set(vm, 'goals', r.data.goalSummary)
+          if (data.hasOwnProperty('goalSummary')) {
+            vm.$set(vm, 'goals', data.goalSummary)
           } else {
-            vm.$set(vm, 'goals', r.data.goals)
+            vm.$set(vm, 'goals', data.goals)
           }
           vm.errorData = null
           vm.loaded = true
         }
-      }, (e) => {
+      }).catch((e) => {
+        if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
         vm.error = true
         vm.loading = false
         vm.goals = []
-        vm.errorData = e && e.response && e.response.data ? e.response.data : e
+        vm.errorData = e.message || e
       })
     }
   }
 }
 </script>
+
+<style scoped>
+.pointer { cursor: pointer; }
+</style>

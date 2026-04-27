@@ -56,8 +56,8 @@
       </div>
     </div>
 
-    <div class="alert alert-danger" role="alert" v-if="error">
-      {{ error }}
+    <div v-if="error">
+      <exception :exception='error'></exception>
     </div>
 
     <div class="row" v-show="stacked">
@@ -180,6 +180,9 @@ export default {
       stacked: false,
       filter: '',
       cachedKccData: null,
+      async: false,
+      asyncData: null,
+      asyncRetryTimer: null,
       error: null,
       brokerList: []
     }
@@ -187,6 +190,11 @@ export default {
 
   beforeMount () {
     this.argsChanged()
+  },
+  beforeDestroy () {
+    if (this.asyncRetryTimer) {
+      clearTimeout(this.asyncRetryTimer)
+    }
   },
 
   watch: {
@@ -204,9 +212,21 @@ export default {
   },
 
   methods: {
-    argsChanged () {
+    argsChanged (retries) {
+      retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
+      if (!newurl) {
+        if (retries < 20) {
+          setTimeout(() => this.argsChanged(retries + 1), 500)
+        }
+        return
+      }
       this.$store.commit('seturl', newurl)
+      if (this.asyncRetryTimer) {
+        clearTimeout(this.asyncRetryTimer)
+        this.asyncRetryTimer = null
+      }
+      this.fetchKccData()
     },
     cacheKccDataItem (item) {
       if (!this.cachedKccData.has(item.topic)) {
@@ -239,7 +259,8 @@ export default {
           }))
         })
         .catch(error => {
-          this.error = error.response.data
+          if (this.asyncRetryTimer) { clearTimeout(this.asyncRetryTimer); this.asyncRetryTimer = null }
+          this.error = error && error.response ? error.response.data : error
         })
     },
     formatItemData (item) {

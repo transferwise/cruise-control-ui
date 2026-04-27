@@ -16,7 +16,7 @@
       <async-task :asyncData='asyncData'></async-task>
     </div>
     <div v-else-if='!loaded && loading'>
-      <p>Loading ...</p>
+      <div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div> Loading ...</div>
     </div>
     <div v-else>
       <!-- statistics -->
@@ -86,6 +86,7 @@ export default {
       errorData: null,
       async: false,
       asyncData: null,
+      asyncRetryTimer: null,
       stats: {
         brokers: 0,
         replicas: 0,
@@ -110,6 +111,11 @@ export default {
   },
   beforeMount () {
     this.argsChanged()
+  },
+  beforeDestroy () {
+    if (this.asyncRetryTimer) {
+      clearTimeout(this.asyncRetryTimer)
+    }
   },
   watch: {
     group: function (ogroup, ngroup) {
@@ -149,51 +155,70 @@ export default {
     }
   },
   methods: {
-    argsChanged () {
+    argsChanged (retries) {
+      retries = retries || 0
+      if (retries > 5) return
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
-      // console.log(newurl)
       this.$store.commit('seturl', newurl)
       this.loaded = false
       this.newurl = newurl
+      if (this.asyncRetryTimer) {
+        clearTimeout(this.asyncRetryTimer)
+        this.asyncRetryTimer = null
+      }
       this.getKafkaState()
     },
     getKafkaState () {
       const vm = this
       vm.loading = true
-      vm.$http.get(vm.url, {withCredentials: true}).then((r) => {
-        if (r.data === null || r.data === undefined || r.data === '') {
+      window.fetch(vm.url, {credentials: 'omit'}).then((resp) => {
+        const contentType = resp.headers.get('content-type') || ''
+        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+      }).then((resp) => {
+        let data
+        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
+        if (data === null || data === undefined || data === '') {
           vm.error = true
-          vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
-        } else if (r.headers['content-type'].match(/text\/plain/) || r.data.progress) {
+          vm.errorData = 'CruiseControl sent an empty response with ' + resp.status + ' status code.'
+        } else if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
           vm.async = true
-          vm.asyncData = r.data
+          vm.asyncData = data
+          if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
+          vm.asyncRetryTimer = setTimeout(() => vm.getKafkaState(), 5000)
+        } else if (!resp.ok) {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
+          vm.loading = false
+          vm.error = true
+          vm.errorData = data
         } else {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.error = false
           vm.errorData = null
           vm.loading = false
           vm.loaded = true
-          vm.KafkaPartitionState.offline = r.data.KafkaPartitionState.offline
-          vm.KafkaPartitionState.urp = r.data.KafkaPartitionState.urp
-          vm.KafkaBrokerState.ReplicaCountByBrokerId = r.data.KafkaBrokerState.ReplicaCountByBrokerId
-          vm.KafkaBrokerState.OutOfSyncCountByBrokerId = r.data.KafkaBrokerState.OutOfSyncCountByBrokerId
-          vm.KafkaBrokerState.LeaderCountByBrokerId = r.data.KafkaBrokerState.LeaderCountByBrokerId
+          vm.KafkaPartitionState.offline = data.KafkaPartitionState.offline
+          vm.KafkaPartitionState.urp = data.KafkaPartitionState.urp
+          vm.KafkaBrokerState.ReplicaCountByBrokerId = data.KafkaBrokerState.ReplicaCountByBrokerId
+          vm.KafkaBrokerState.OutOfSyncCountByBrokerId = data.KafkaBrokerState.OutOfSyncCountByBrokerId
+          vm.KafkaBrokerState.LeaderCountByBrokerId = data.KafkaBrokerState.LeaderCountByBrokerId
           // only >= kafka 2.0 release
           try {
-            vm.KafkaPartitionState['with-offline-replicas'] = r.data.KafkaPartitionState['with-offline-replicas']
-            vm.KafkaPartitionState['under-min-isr'] = r.data.KafkaPartitionState['under-min-isr']
-            vm.KafkaBrokerState.OfflineReplicaCountByBrokerId = r.data.KafkaBrokerState.OfflineReplicaCountByBrokerId
-            vm.KafkaBrokerState.OfflineLogDirsByBrokerId = r.data.KafkaBrokerState.OfflineLogDirsByBrokerId
-            vm.KafkaBrokerState.OnlineLogDirsByBrokerId = r.data.KafkaBrokerState.OnlineLogDirsByBrokerId
+            vm.KafkaPartitionState['with-offline-replicas'] = data.KafkaPartitionState['with-offline-replicas']
+            vm.KafkaPartitionState['under-min-isr'] = data.KafkaPartitionState['under-min-isr']
+            vm.KafkaBrokerState.OfflineReplicaCountByBrokerId = data.KafkaBrokerState.OfflineReplicaCountByBrokerId
+            vm.KafkaBrokerState.OfflineLogDirsByBrokerId = data.KafkaBrokerState.OfflineLogDirsByBrokerId
+            vm.KafkaBrokerState.OnlineLogDirsByBrokerId = data.KafkaBrokerState.OnlineLogDirsByBrokerId
             console.log('Found Kafka-2.0 Features.')
           } catch (e) {
             console.log('No kafka 2.0 features found')
           }
         }
-      }, (e) => {
+      }).catch((e) => {
+        if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
         vm.loading = false
         vm.error = true
-        vm.errorData = e && e.response && e.response.data ? e.response.data : e
+        vm.errorData = e.message || e
       })
     }
   }

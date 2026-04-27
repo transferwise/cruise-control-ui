@@ -24,12 +24,20 @@ export default {
     return {
       error: false,
       errorData: null,
+      async: false,
+      asyncData: null,
+      asyncRetryTimer: null,
       success: null,
       state: ''
     }
   },
   created () {
     this.argsChanged()
+  },
+  beforeDestroy () {
+    if (this.asyncRetryTimer) {
+      clearTimeout(this.asyncRetryTimer)
+    }
   },
   watch: {
     group: function (ogroup, ngroup) {
@@ -59,35 +67,59 @@ export default {
     }
   },
   methods: {
-    argsChanged () {
+    argsChanged (retries) {
+      retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
+      if (!newurl) {
+        if (retries < 20) {
+          setTimeout(() => this.argsChanged(retries + 1), 500)
+        }
+        return
+      }
       this.$store.commit('seturl', newurl)
       this.loaded = false
+      if (this.asyncRetryTimer) {
+        clearTimeout(this.asyncRetryTimer)
+        this.asyncRetryTimer = null
+      }
       this.fetchMonitorState()
     },
     fetchMonitorState () {
       const vm = this
       vm.loading = true
-      this.$http.get(vm.monitor_url, {withCredentials: true}).then((r) => {
-        if (r.data === null || r.data === undefined || r.data === '') {
+      window.fetch(vm.monitor_url, {credentials: 'omit'}).then((resp) => {
+        const contentType = resp.headers.get('content-type') || ''
+        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+      }).then((resp) => {
+        let data
+        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
+        if (data === null || data === undefined || data === '') {
           vm.error = true
-          vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
-        } else if (r.headers['content-type'].match(/text\/plain/) || r.data.progress) {
+          vm.errorData = 'CruiseControl sent an empty response with ' + resp.status + ' status code.'
+        } else if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
           vm.async = true
-          vm.asyncData = r.data
+          vm.asyncData = data
+          if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
+          vm.asyncRetryTimer = setTimeout(() => vm.fetchMonitorState(), 5000)
+        } else if (!resp.ok) {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
+          vm.loading = false
+          vm.error = true
+          vm.errorData = data
         } else {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.error = false
           vm.errorData = null
           vm.loading = false
-          vm.state = r.data.MonitorState
-          vm.loading = false
+          vm.state = data.MonitorState
           vm.loaded = true
         }
-      }, (e) => {
+      }).catch((e) => {
+        if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
         vm.loading = false
         vm.error = true
-        vm.errorData = e && e.response && e.response.data ? e.response.data : e
+        vm.errorData = e.message || e
       })
     },
     changeState () {

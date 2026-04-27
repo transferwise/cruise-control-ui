@@ -102,7 +102,7 @@
       <async-task :asyncData='asyncData'></async-task>
     </div>
     <div v-else-if="!loaded && loading">
-      Loading ...
+      <div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div> Loading ...</div>
     </div>
     <table class="table table-sm table-bordered" v-else-if='records.length > 0'>
       <thead>
@@ -149,6 +149,7 @@ export default {
       errorData: null,
       async: false,
       asyncData: null,
+      asyncRetryTimer: null,
       // Form Elements
       resource: 'DISK',
       allResources: [
@@ -172,6 +173,11 @@ export default {
       header: [],
       colUnits: [],
       detectedUserTaskId: false // true in case the response has user-task-id
+    }
+  },
+  beforeDestroy () {
+    if (this.asyncRetryTimer) {
+      clearTimeout(this.asyncRetryTimer)
     }
   },
   watch: {
@@ -227,11 +233,22 @@ export default {
       this.tos = true
       this.getPartitionLoad()
     },
-    argsChanged () {
+    argsChanged (retries) {
+      retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
+      if (!newurl) {
+        if (retries < 20) {
+          setTimeout(() => this.argsChanged(retries + 1), 500)
+        }
+        return
+      }
       this.$store.commit('seturl', newurl)
       this.loaded = false
       this.newurl = newurl
+      if (this.asyncRetryTimer) {
+        clearTimeout(this.asyncRetryTimer)
+        this.asyncRetryTimer = null
+      }
       this.getPartitionLoad()
     },
     getPartitionLoad () {
@@ -240,37 +257,64 @@ export default {
       vm.async = false
       vm.loaded = false
       vm.loading = true
-      let params = {
-        withCredentials: true
+      let fetchOptions = {
+        credentials: 'omit'
       }
       // check if there is a running user-task-id for this end point in the $store
       // let task = this.$store.getters.getTaskId('proposals')
       let task = this.$store.getters.getTaskId(vm.url)
       if (task) {
-        params['headers'] = {
+        fetchOptions['headers'] = {
           'User-Task-ID': task
         }
       }
-      vm.$http.get(vm.url, params).then((r) => {
+      window.fetch(vm.url, fetchOptions).then((resp) => {
+        let contentType = resp.headers.get('content-type') || ''
+        return resp.text().then((text) => {
+          return {
+            ok: resp.ok,
+            status: resp.status,
+            contentType: contentType,
+            text: text,
+            headers: resp.headers
+          }
+        })
+      }).then((resp) => {
+        if (!resp.ok) {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
+          vm.error = true
+          vm.loading = false
+          vm.errorData = resp.text
+          return
+        }
+        let data = null
+        try {
+          data = JSON.parse(resp.text)
+        } catch (e) {
+          data = resp.text
+        }
         // set this so that we know if the server sends user-task-id in the response
-        vm.detectedUserTaskId = r.headers.hasOwnProperty('user-task-id')
+        vm.detectedUserTaskId = resp.headers.has('user-task-id')
         // do check the data response
-        if (r.data === null || r.data === undefined || r.data === '') {
+        if (data === null || data === undefined || data === '') {
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
-        } else if (r.headers['content-type'].match(/text\/plain/) || r.data.progress) {
-          let task = r.headers.hasOwnProperty('user-task-id') ? r.headers['user-task-id'] : null
+        } else if (resp.contentType.match(/text\/plain/) || data.progress) {
+          let task = resp.headers.has('user-task-id') ? resp.headers.get('user-task-id') : null
           vm.$store.commit('setTaskId', {url: vm.url, taskid: task}) // save this task for follow-up calls (null deletes in vuex)
           vm.async = true
-          vm.asyncData = r.data
+          vm.asyncData = data
           vm.showAsyncRefreshButton = true
+          if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
+          vm.asyncRetryTimer = setTimeout(() => vm.getPartitionLoad(), 5000)
         } else {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.loading = false
           vm.loaded = true
           vm.error = false
           vm.errorData = null
-          vm.records = r.data.records || []
+          vm.records = data.records || []
           // CPU/Disk/NW* are converted to lowercase after refactor in CruiseControl code
           if (vm.apiMinorVersion === 2) {
             vm.header = ['topic', 'partition', 'leader', 'followers', 'cpu', 'disk', 'networkInbound', 'networkOutbound', 'msg_in']
@@ -280,10 +324,11 @@ export default {
             vm.colUnits = ['str', 'int', 'int', 'list', 'float', 'float', 'float', 'float', 'int']
           }
         }
-      }, (e) => {
+      }).catch((e) => {
+        if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
         vm.error = true
         vm.loading = false
-        vm.errorData = e && e.response && e.response.data ? e.response.data : e
+        vm.errorData = e.message || e
       })
     }
   }

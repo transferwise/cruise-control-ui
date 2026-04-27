@@ -16,9 +16,18 @@
       <async-task :asyncData='asyncData'></async-task>
     </div>
     <div v-else-if="loading">
-      Loading ...
+      <div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div> Loading ...</div>
     </div>
     <div v-else-if='sortedTasks.length > 0'>
+      <div class="form-inline mb-2">
+        <input type="text" class="form-control form-control-sm mr-2" v-model="searchText" placeholder="Search by Task ID or Client...">
+        <select class="form-control form-control-sm" v-model="statusFilter">
+          <option value="">All Statuses</option>
+          <option value="Active">Active</option>
+          <option value="Completed">Completed</option>
+          <option value="CompletedWithError">CompletedWithError</option>
+        </select>
+      </div>
       <table class="table table-sm table-bordered">
         <thead class="thead-light">
           <tr>
@@ -31,7 +40,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="t in sortedTasks">
+          <tr v-for="t in filteredTasks" :key="t.UserTaskId">
             <td>{{ t.UserTaskId }}</td>
             <td>{{ t.ClientIdentity }}</td>
             <td>{{ (new Date(parseInt(t.StartMs, 10))).toString().substr(0, 34) }}</td>
@@ -70,12 +79,20 @@ export default {
       errorData: null,
       async: false,
       asyncData: null,
-      tasks: Array,
-      sortColumn: 'StartMs'
+      asyncRetryTimer: null,
+      tasks: [],
+      sortColumn: 'StartMs',
+      searchText: '',
+      statusFilter: ''
     }
   },
   created () {
     this.argsChanged()
+  },
+  beforeDestroy () {
+    if (this.asyncRetryTimer) {
+      clearTimeout(this.asyncRetryTimer)
+    }
   },
   watch: {
     group: function (ogroup, ngroup) {
@@ -86,10 +103,21 @@ export default {
     }
   },
   methods: {
-    argsChanged () {
+    argsChanged (retries) {
+      retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
+      if (!newurl) {
+        if (retries < 20) {
+          setTimeout(() => this.argsChanged(retries + 1), 500)
+        }
+        return
+      }
       this.$store.commit('seturl', newurl)
       this.loaded = false
+      if (this.asyncRetryTimer) {
+        clearTimeout(this.asyncRetryTimer)
+        this.asyncRetryTimer = null
+      }
       this.getUserTasks()
     },
     sort (col) {
@@ -98,25 +126,39 @@ export default {
     getUserTasks () {
       const vm = this
       vm.loading = true
-      vm.$http.get(vm.url, {withCredentials: true}).then((r) => {
-        if (r.data === null || r.data === undefined || r.data === '') {
+      window.fetch(vm.url, {credentials: 'omit'}).then((resp) => {
+        const contentType = resp.headers.get('content-type') || ''
+        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+      }).then((resp) => {
+        let data
+        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
+        if (data === null || data === undefined || data === '') {
           vm.error = true
-          vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
-        } else if (r.headers['content-type'].match(/text\/plain/) || r.data.progress) {
+          vm.errorData = 'CruiseControl sent an empty response with ' + resp.status + ' status code.'
+        } else if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
           vm.async = true
-          vm.asyncData = r.data
+          vm.asyncData = data
+          if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
+          vm.asyncRetryTimer = setTimeout(() => vm.getUserTasks(), 5000)
+        } else if (!resp.ok) {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
+          vm.loading = false
+          vm.error = true
+          vm.errorData = data
         } else {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.error = false
           vm.errorData = null
-          vm.tasks = r.data.userTasks
+          vm.tasks = data.userTasks
         }
         vm.loading = false
         vm.loaded = true
-      }, (e) => {
+      }).catch((e) => {
+        if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
         vm.loading = false
         vm.error = true
-        vm.errorData = e && e.response && e.response.data ? e.response.data : e
+        vm.errorData = e.message || e
       })
     }
   },
@@ -129,6 +171,21 @@ export default {
     },
     sortedTasks () {
       return sortBy(this.tasks, this.sortColumn)
+    },
+    filteredTasks () {
+      let result = this.sortedTasks
+      if (this.statusFilter) {
+        result = result.filter(t => t.Status === this.statusFilter)
+      }
+      if (this.searchText) {
+        const q = this.searchText.toLowerCase()
+        result = result.filter(t => {
+          return (t.UserTaskId && t.UserTaskId.toLowerCase().includes(q)) ||
+            (t.ClientIdentity && t.ClientIdentity.toLowerCase().includes(q)) ||
+            (t.RequestURL && t.RequestURL.toLowerCase().includes(q))
+        })
+      }
+      return result
     }
   }
 }

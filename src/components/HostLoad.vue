@@ -9,7 +9,7 @@
       <async-task :asyncData='asyncData'></async-task>
     </div>
     <div v-else-if="loading && !sortedHosts">
-      Loading ...
+      <div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div> Loading ...</div>
     </div>
     <table class="table table-sm table-bordered" v-else-if='sortedHosts && sortedHosts.length > 0'>
       <thead class="thead-light">

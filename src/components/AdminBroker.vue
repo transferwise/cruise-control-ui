@@ -19,16 +19,22 @@
       <async-task :asyncData='asyncData'></async-task>
     </div>
     <div v-else-if="!loaded && loading">
-      Loading Brokers ...
+      <div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div> Loading ...</div>
     </div>
     <div v-else-if='loaded'>
+      <div class="form-inline mb-2">
+        <input type="text" class="form-control form-control-sm" v-model="adminFilterText" placeholder="Filter by Broker ID, Host, or Rack...">
+      </div>
       <table class="table table-sm table-bordered">
         <thead class="thead-light">
           <tr>
-            <th>Broker</th>
-            <th>#Replicas </th>
-            <th>#Leaders</th>
-            <th>#Out of Sync Replicas</th>
+            <th @click='sortAdmin("bid")' style="cursor:pointer">Broker</th>
+            <th @click='sortAdmin("host")' style="cursor:pointer">Host</th>
+            <th @click='sortAdmin("rack")' style="cursor:pointer">Rack</th>
+            <th @click='sortAdmin("state")' style="cursor:pointer">State</th>
+            <th @click='sortAdmin("replicas")' style="cursor:pointer">#Replicas</th>
+            <th @click='sortAdmin("leaders")' style="cursor:pointer">#Leaders</th>
+            <th @click='sortAdmin("outofsync")' style="cursor:pointer">#Out of Sync Replicas</th>
             <template v-if='KafkaBrokerState.OfflineReplicaCountByBrokerId'>
               <!-- kafka 2.0 bits -->
               <th>#Offline Replicas</th>
@@ -39,24 +45,27 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for='(v, bid) in KafkaBrokerState.ReplicaCountByBrokerId' :class='brokerRowColor'>
-            <td>{{ bid }}</td>
-            <td>{{ v }}</td>
-            <td :class='!KafkaBrokerState.LeaderCountByBrokerId[bid] ? "table-danger" : null'>{{ KafkaBrokerState.LeaderCountByBrokerId[bid] || 0 }}</td>
-            <td :class='KafkaBrokerState.OutOfSyncCountByBrokerId[bid] > 0 ? "table-danger" : null'>{{ KafkaBrokerState.OutOfSyncCountByBrokerId[bid] || 0 }}</td>
+          <tr v-for='row in filteredAdminBrokers' :class='brokerRowColor' :key='row.bid'>
+            <td>{{ row.bid }}</td>
+            <td>{{ row.host }}</td>
+            <td>{{ row.rack || 'N/A' }}</td>
+            <td><broker-state :state='row.state'></broker-state></td>
+            <td>{{ row.replicas }}</td>
+            <td :class='!row.leaders ? "table-danger" : null'>{{ row.leaders }}</td>
+            <td :class='row.outofsync > 0 ? "table-danger" : null'>{{ row.outofsync }}</td>
             <template v-if='KafkaBrokerState.OfflineReplicaCountByBrokerId'>
-              <td :class='KafkaBrokerState.OfflineReplicaCountByBrokerId[bid] ? "table-danger" : null'>
-                {{ KafkaBrokerState.OfflineReplicaCountByBrokerId[bid] ? KafkaBrokerState.OfflineReplicaCountByBrokerId[bid] : 0 }}
+              <td :class='row.offlineReplicas ? "table-danger" : null'>
+                {{ row.offlineReplicas }}
               </td>
               <td>
-                {{ KafkaBrokerState.OnlineLogDirsByBrokerId[bid] ? KafkaBrokerState.OnlineLogDirsByBrokerId[bid].length : 0 }}
+                {{ row.onlineLogDirs }}
               </td>
-              <td :class='KafkaBrokerState.OfflineLogDirsByBrokerId[bid].length > 0 ? "table-danger" : null'>
-                {{ KafkaBrokerState.OfflineLogDirsByBrokerId[bid] ? KafkaBrokerState.OfflineLogDirsByBrokerId[bid].length : 0 }}
+              <td :class='row.offlineLogDirs > 0 ? "table-danger" : null'>
+                {{ row.offlineLogDirs }}
               </td>
             </template>
             <td>
-              <input type="checkbox" v-model="selectedBrokers" :value='bid'/>
+              <input type="checkbox" v-model="selectedBrokers" :value='row.bid'/>
             </td>
           </tr>
         </tbody>
@@ -146,7 +155,7 @@
       <div class="alert alert-info" v-if='actionName === "rebalance"'>
         <h5>Rebalance Cluster Flags</h5>
         <hr>
-        <form>
+        <form @submit.prevent>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" v-model='showAdvanced'>
             <label class="form-check-label">
@@ -165,7 +174,7 @@
           <div class="row">
             <div class="col-md-4">
               <h6>Choose Goals</h6>
-              <div class="form-check" v-for='g in allGoals.goals' v-if='!g.skip'>
+              <div class="form-check" v-for='g in allGoals.goals' :key='g.goal' v-if='!g.skip'>
                 <template v-if='g.group == 1'>
                   <input class="form-check-input" type="checkbox" :value="g.goal" v-model='goals1' :disabled='disable_goals1'>
                   <label class="form-check-label" :title='g.description'>
@@ -247,6 +256,12 @@
                   <input class="form-control" type='number' min=0 v-model='concurrent_leader_movements' placeholder='(CC Default)'>
                 </div>
               </div>
+              <div class="form-row">
+                <label class="col-sm-6">Replication Throttle (bytes per second):</label>
+                <div class="col-sm-6">
+                  <input class="form-control" type='number' min=0 v-model='replication_throttle' placeholder='(CC Default)'>
+                </div>
+              </div>
             </div>
           </div>
           </template>
@@ -261,38 +276,45 @@
       <div class="alert alert-warning" v-if='selectedBrokers.length > 0 && actionName === "demote"'>
         <h5>Demote Broker Flags</h5>
         <hr>
-        <div class="row">
-          <div class="col-md-4">
-            <div class="form-inline">
-              <label class="form-label"> Concurrent Leader Movements </label>
-              <input type="number" class="form-input" v-model='concurrent_leader_movements' placeholder='(CC Default)'>
+        <form @submit.prevent>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" v-model='dryrun'>
+            <label class="form-check-label">DryRun</label>
+          </div>
+          <hr>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="form-inline">
+                <label class="form-label"> Concurrent Leader Movements </label>
+                <input type="number" class="form-input" v-model='concurrent_leader_movements' placeholder='(CC Default)'>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-inline">
+                <label class="form-label">Replication Throttle (bytes per second):</label>
+                <input class="form-input" type='number' min=0 v-model='replication_throttle' placeholder='(CC Default)'>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" v-model='disallow_capacity_estimation'>
+                <label class="form-check-label">
+                  Disallow Capacity Estimation
+                </label>
+              </div>
             </div>
           </div>
-          <div class="col-md-3">
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="checkbox" v-model='disallow_capacity_estimation'>
-              <label class="form-check-label">
-                Disallow Capacity Estimation
-              </label>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="checkbox" v-model='dryrun'>
-              <label class="form-check-label">DryRun</label>
-            </div>
-          </div>
-          <div class="col-md-2">
+          <div class="text-right">
             <button @click='actionBroker' class="btn btn-primary">Demote Brokers {{ selectedBrokers }}</button>
           </div>
-        </div>
+        </form>
       </div>
 
       <!-- Remove Broker Flags -->
       <div class="alert alert-danger" v-if='selectedBrokers.length > 0 && actionName === "remove"'>
         <h5>Remove Broker Flags</h5>
         <hr>
-        <form>
+        <form @submit.prevent>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" v-model='showAdvanced'>
             <label class="form-check-label">
@@ -310,7 +332,7 @@
           <div class="row">
             <div class="col-md-4">
               <h6>Choose Goals</h6>
-              <div class="form-check" v-for='g in allGoals.goals' v-if='!g.skip'>
+              <div class="form-check" v-for='g in allGoals.goals' :key='g.goal' v-if='!g.skip'>
                 <template v-if='g.group == 1'>
                   <input class="form-check-input" type="checkbox" :value="g.goal" v-model='goals1' :disabled='disable_goals1'>
                   <label class="form-check-label" :title='g.description'>
@@ -400,6 +422,12 @@
                   <input class="form-control" type='number' min=0 v-model='concurrent_leader_movements' placeholder='(CC Default)'>
                 </div>
               </div>
+              <div class="form-row">
+                <label class="col-sm-6">Replication Throttle (bytes per second):</label>
+                <div class="col-sm-6">
+                  <input class="form-control" type='number' min=0 v-model='replication_throttle' placeholder='(CC Default)'>
+                </div>
+              </div>
             </div>
           </div>
           </template>
@@ -414,7 +442,7 @@
       <div class="alert alert-success" v-if='selectedBrokers.length > 0 && actionName === "add"'>
         <h5>Add Broker Flags</h5>
         <hr>
-        <form>
+        <form @submit.prevent>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" v-model='showAdvanced'>
             <label class="form-check-label">
@@ -432,7 +460,7 @@
           <div class="row">
             <div class="col-md-4">
               <h6>Choose Goals</h6>
-              <div class="form-check" v-for='g in allGoals.goals' v-if='!g.skip'>
+              <div class="form-check" v-for='g in allGoals.goals' :key='g.goal' v-if='!g.skip'>
                 <template v-if='g.group == 1'>
                   <input class="form-check-input" type="checkbox" :value="g.goal" v-model='goals1' :disabled='disable_goals1'>
                   <label class="form-check-label" :title='g.description'>
@@ -521,6 +549,12 @@
                   <input class="form-control" type='number' min=0 v-model='concurrent_leader_movements' placeholder='(CC Default)'>
                 </div>
               </div>
+              <div class="form-row">
+                <label class="col-sm-6">Replication Throttle (bytes per second):</label>
+                <div class="col-sm-6">
+                  <input class="form-control" type='number' min=0 v-model='replication_throttle' placeholder='(CC Default)'>
+                </div>
+              </div>
             </div>
           </div>
           </template>
@@ -538,7 +572,38 @@
         <div v-if='posted'>
           <div v-if='postResponse'>
             <button class="btn btn-info" @click='clearPostResponse'>Clear Response</button>
-            <exception :exception='postResponse'></exception>
+            <div v-if='dataParsed'>
+              <table class="table table-sm table-bordered">
+                <thead class="thead-light">
+                  <tr>
+                    <th>Replica Movements</th>
+                    <th>Leader Movements</th>
+                    <th>Recent Windows</th>
+                    <th>Data To Move</th>
+                    <th>Monitored Partitions %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{{ numReplicaMovements | formatNumber }}</td>
+                    <td>{{ numLeaderMovements | formatNumber }}</td>
+                    <td>{{ recentWindows | formatNumber }}</td>
+                    <td>{{ dataToMoveMB | formatUnits }}</td>
+                    <td>{{ monitoredPartitionsPercentage | formatDecimal }} %</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-if='postError'>
+              <exception :exception='postResponse'></exception>
+            </div>
+            <div v-else>
+              <div class="alert alert-success">Action submitted successfully.</div>
+              <button class="btn btn-sm btn-outline-secondary mb-2" @click="showRawResponse = !showRawResponse">
+                {{ showRawResponse ? 'Hide' : 'Show' }} Raw Response
+              </button>
+              <pre v-if="showRawResponse" class="bg-light p-2 border" style="max-height:400px;overflow:auto"><code>{{ JSON.stringify(postResponse, null, 2) }}</code></pre>
+            </div>
           </div>
           <div class='alert alert-success' v-else>
             Waiting for Response ...
@@ -552,6 +617,7 @@
 // Disable this due to https://github.com/linkedin/cruise-control-ui/issues/40
 // import xssFilters from 'xss-filters'
 import goals from '@/goals'
+const sortBy = require('lodash.sortby')
 import BrokerState from '@/components/BrokerState'
 
 export default {
@@ -570,6 +636,9 @@ export default {
       loaded: false, // true if data is fetched at-least once
       error: false, // in case server sent non 200 OK Response
       errorData: null, // complete error data
+      async: false,
+      asyncData: null,
+      asyncRetryTimer: null,
       selectedBrokers: [],
       // This is the response from the CC
       KafkaBrokerState: {
@@ -580,6 +649,9 @@ export default {
         LeaderCountByBrokerId: {},
         OfflineReplicaCountByBrokerId: {}
       },
+      brokerDetails: {}, // host, rack, state per broker from /load endpoint
+      adminFilterText: '',
+      adminSortColumn: 'bid', // column to sort admin broker table
       allGoals: goals, // goals from configuration
       /*
        * x                              Goals   Disallow-Capacity-Estimation   Skip-Hard-Goal-Check   Use-Ready-Default-Goals   Kafka-Assigner-Mode   Module
@@ -607,6 +679,7 @@ export default {
       excluded_topics: '', // Check CC Documentation
       concurrent_partition_movements_per_broker: null, // Check CC Documentation
       concurrent_leader_movements: null, // Check CC Documentation
+      replication_throttle: null, // Check CC Documentation
       throttle_removed_broker: false, // Check CC Documentation
       throttle_added_broker: false, // Check CC Documentation
       // workflow
@@ -615,11 +688,24 @@ export default {
       posted: false, // true if a POST method is made
       posturl: null, // POST url
       postResponse: '', // POST response from server
-      detectedUserTaskId: false // true in case the response has user-task-id
+      detectedUserTaskId: false, // true in case the response has user-task-id
+      postError: false, // true if the POST response is an error
+      showRawResponse: false, // toggle raw JSON response view
+      dataParsed: false,
+      numReplicaMovements: null,
+      recentWindows: null,
+      dataToMoveMB: null,
+      monitoredPartitionsPercentage: null,
+      numLeaderMovements: null
     }
   },
   created () {
     this.argsChanged()
+  },
+  beforeDestroy () {
+    if (this.asyncRetryTimer) {
+      clearTimeout(this.asyncRetryTimer)
+    }
   },
   computed: {
     taskId () {
@@ -630,6 +716,34 @@ export default {
     },
     brokerRowColor () {
       return null
+    },
+    sortedAdminBrokers () {
+      const vm = this
+      const rows = Object.keys(vm.KafkaBrokerState.ReplicaCountByBrokerId).map(function (bid) {
+        const d = vm.brokerDetails[bid]
+        return {
+          bid: parseInt(bid, 10),
+          host: d ? d.Host : '',
+          rack: d && d.Rack && d.Rack !== d.Host ? d.Rack : '',
+          state: d ? d.BrokerState : '',
+          replicas: vm.KafkaBrokerState.ReplicaCountByBrokerId[bid] || 0,
+          leaders: vm.KafkaBrokerState.LeaderCountByBrokerId[bid] || 0,
+          outofsync: vm.KafkaBrokerState.OutOfSyncCountByBrokerId[bid] || 0,
+          offlineReplicas: vm.KafkaBrokerState.OfflineReplicaCountByBrokerId ? (vm.KafkaBrokerState.OfflineReplicaCountByBrokerId[bid] || 0) : 0,
+          onlineLogDirs: vm.KafkaBrokerState.OnlineLogDirsByBrokerId && vm.KafkaBrokerState.OnlineLogDirsByBrokerId[bid] ? vm.KafkaBrokerState.OnlineLogDirsByBrokerId[bid].length : 0,
+          offlineLogDirs: vm.KafkaBrokerState.OfflineLogDirsByBrokerId && vm.KafkaBrokerState.OfflineLogDirsByBrokerId[bid] ? vm.KafkaBrokerState.OfflineLogDirsByBrokerId[bid].length : 0
+        }
+      })
+      return sortBy(rows, vm.adminSortColumn)
+    },
+    filteredAdminBrokers () {
+      if (!this.adminFilterText) return this.sortedAdminBrokers
+      const q = this.adminFilterText.toLowerCase()
+      return this.sortedAdminBrokers.filter(b => {
+        return String(b.bid).includes(q) ||
+          (b.host && b.host.toLowerCase().includes(q)) ||
+          (b.rack && b.rack.toLowerCase().includes(q))
+      })
     },
     actionURL () {
       let vm = this
@@ -643,6 +757,12 @@ export default {
         }
         if (vm.disallow_capacity_estimation) {
           params.allow_capacity_estimation = !vm.disallow_capacity_estimation
+        }
+        if (vm.concurrent_leader_movements) {
+          params.concurrent_leader_movements = vm.concurrent_leader_movements
+        }
+        if (vm.replication_throttle) {
+          params.replication_throttle = vm.replication_throttle
         }
       }
       if (vm.actionName === 'remove' || vm.actionName === 'add' || vm.actionName === 'rebalance') {
@@ -673,6 +793,9 @@ export default {
         if (vm.concurrent_leader_movements) {
           params.concurrent_leader_movements = vm.concurrent_leader_movements
         }
+        if (vm.replication_throttle) {
+          params.replication_throttle = vm.replication_throttle
+        }
         if (vm.excluded_topics && vm.excluded_topics.length > 0) {
           // Disable this due to https://github.com/linkedin/cruise-control-ui/issues/40
           // params.excluded_topics = xssFilters.uriQueryInDoubleQuotedAttr(vm.excluded_topics)
@@ -693,9 +816,10 @@ export default {
         //  &concurrent_partition_movements_per_broker=[concurrency]
         //  &concurrent_leader_movements=[concurrency]
         //  &throttle_removed_broker=[true/false]
+        //  &replication_throttle=[throttle]
         //  &json=[true/false]
         if (vm.throttle_removed_broker) {
-          params.throttle_removed_broker = params.throttle_removed_broker
+          params.throttle_removed_broker = vm.throttle_removed_broker
         }
         return vm.$helpers.getURL('remove_broker', params)
       }
@@ -706,6 +830,7 @@ export default {
         //  &json=[true/false]
         //  &allow_capacity_estimation=[true/false]
         //  &concurrent_leader_movements=[concurrency]
+        //  &replication_throttle=[throttle]
         return vm.$helpers.getURL('demote_broker', params)
       }
       if (vm.actionName === 'add') {
@@ -723,6 +848,7 @@ export default {
         //  &skip_hard_goal_check=[true/false]
         //  &excluded_topics=[TOPICS]
         //  &use_ready_default_goals=[true/false]
+        //  &replication_throttle=[throttle]
         if (vm.throttle_added_broker) {
           params.throttle_added_broker = vm.throttle_added_broker
         }
@@ -748,6 +874,7 @@ export default {
         //  &concurrent_partition_movements_per_broker=[concurrency]
         //  &concurrent_leader_movements=[concurrency]
         //  &excluded_topics=[TOPICS]
+        //  &replication_throttle=[throttle]
         return vm.$helpers.getURL('rebalance', params)
       }
       if (vm.actionName === 'rebalance_disk') {
@@ -800,9 +927,10 @@ export default {
         this.use_ready_default_goals = false
         this.kafka_assigner = false
         this.data_from = ''
-        this.excluded_topics = null
-        this.concurrent_partition_movements_per_broker = 0
-        this.concurrent_leader_movements = 0
+        this.excluded_topics = ''
+        this.concurrent_partition_movements_per_broker = null
+        this.concurrent_leader_movements = null
+        this.replication_throttle = null
       }
     },
     group: function (ogroup, ngroup) {
@@ -817,20 +945,46 @@ export default {
       } else {
         this.actionName = 'ple'
       }
+    },
+    adminFilterText () {
+      this.selectedBrokers = []
     }
   },
   methods: {
+    sortAdmin (col) {
+      this.adminSortColumn = col
+    },
     clearPostResponse () {
       this.posted = false
       this.postResponse = ''
+      this.postError = false
+      this.showRawResponse = false
+      this.dataParsed = false
+      this.numReplicaMovements = null
+      this.recentWindows = null
+      this.dataToMoveMB = null
+      this.monitoredPartitionsPercentage = null
+      this.numLeaderMovements = null
     },
-    argsChanged () {
+    argsChanged (retries) {
+      retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
+      if (!newurl) {
+        if (retries < 20) {
+          setTimeout(() => this.argsChanged(retries + 1), 500)
+        }
+        return
+      }
       this.$store.commit('seturl', newurl)
       this.loaded = false
       this.newurl = newurl
       this.clearPostResponse()
+      if (this.asyncRetryTimer) {
+        clearTimeout(this.asyncRetryTimer)
+        this.asyncRetryTimer = null
+      }
       this.getKafkaState()
+      this.getBrokerDetails()
     },
     actionBroker () {
       let vm = this
@@ -854,10 +1008,40 @@ export default {
         let task = r.headers.hasOwnProperty('user-task-id') ? r.headers['user-task-id'] : null
         vm.$store.commit('setTaskId', {url: vm.actionURL, taskid: task}) // save this task for follow-up calls (null deletes in vuex)
         vm.posted = true
+        vm.postError = false
         vm.postResponse = r.data
+        if (r.data && r.data.summary) {
+          vm.dataParsed = true
+          vm.numReplicaMovements = r.data.summary.numReplicaMovements
+          vm.numLeaderMovements = r.data.summary.numLeaderMovements
+          vm.recentWindows = r.data.summary.recentWindows
+          vm.dataToMoveMB = r.data.summary.dataToMoveMB
+          vm.monitoredPartitionsPercentage = r.data.summary.monitoredPartitionsPercentage
+        }
       }, (e) => {
         vm.posted = true
+        vm.postError = true
         vm.postResponse = e && e.response ? e.response.data : e
+      })
+    },
+    getBrokerDetails () {
+      const vm = this
+      let url = vm.$helpers.getURL('load', {allow_capacity_estimation: true})
+      window.fetch(url, {credentials: 'omit'}).then((resp) => {
+        return resp.text().then((text) => ({text, ok: resp.ok}))
+      }).then((resp) => {
+        if (!resp.ok) return
+        let data
+        try { data = JSON.parse(resp.text) } catch (e) { return }
+        if (data && data.brokers) {
+          let details = {}
+          data.brokers.forEach(function (b) {
+            details[b.Broker] = b
+          })
+          vm.brokerDetails = details
+        }
+      }).catch(() => {
+        // silently ignore - broker details are supplementary
       })
     },
     getKafkaState () {
@@ -867,40 +1051,56 @@ export default {
       vm.loading = true
       let url = vm.$helpers.getURL('kafka_cluster_state')
       // console.log(url)
-      this.$http.get(url, {withCredentials: true}).then((r) => {
+      window.fetch(url, {credentials: 'omit'}).then((resp) => {
+        let contentType = resp.headers.get('content-type') || ''
+        return resp.text().then((text) => ({text, ok: resp.ok, status: resp.status, contentType, headers: resp.headers}))
+      }).then((resp) => {
         // set this so that we know if the server sends user-task-id in the response
-        vm.detectedUserTaskId = r.headers.hasOwnProperty('user-task-id')
+        vm.detectedUserTaskId = resp.headers.has('user-task-id')
+        if (!resp.ok) {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
+          vm.loading = false
+          vm.error = true
+          vm.errorData = resp.text || resp.status
+          return
+        }
+        let data
+        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
         // do verify the state
-        if (r.data === null || r.data === undefined || r.data === '') {
+        if (data === null || data === undefined || data === '') {
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
-        } else if (r.headers['content-type'].match(/text\/plain/) || r.data.progress) {
+        } else if (resp.contentType.match(/text\/plain/) || data.progress) {
           vm.async = true
-          vm.asyncData = r.data
+          vm.asyncData = data
           vm.showAsyncRefreshButton = true
+          if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
+          vm.asyncRetryTimer = setTimeout(() => vm.getKafkaState(), 5000)
         } else {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.error = false
           vm.errorData = null
           vm.loading = false
           vm.loaded = true
-          vm.KafkaBrokerState.ReplicaCountByBrokerId = r.data.KafkaBrokerState.ReplicaCountByBrokerId
-          vm.KafkaBrokerState.OutOfSyncCountByBrokerId = r.data.KafkaBrokerState.OutOfSyncCountByBrokerId
-          vm.KafkaBrokerState.LeaderCountByBrokerId = r.data.KafkaBrokerState.LeaderCountByBrokerId
+          vm.KafkaBrokerState.ReplicaCountByBrokerId = data.KafkaBrokerState.ReplicaCountByBrokerId
+          vm.KafkaBrokerState.OutOfSyncCountByBrokerId = data.KafkaBrokerState.OutOfSyncCountByBrokerId
+          vm.KafkaBrokerState.LeaderCountByBrokerId = data.KafkaBrokerState.LeaderCountByBrokerId
           // only >= kafka 2.0 release
           try {
-            vm.KafkaBrokerState.OfflineReplicaCountByBrokerId = r.data.KafkaBrokerState.OfflineReplicaCountByBrokerId
-            vm.KafkaBrokerState.OfflineLogDirsByBrokerId = r.data.KafkaBrokerState.OfflineLogDirsByBrokerId
-            vm.KafkaBrokerState.OnlineLogDirsByBrokerId = r.data.KafkaBrokerState.OnlineLogDirsByBrokerId
+            vm.KafkaBrokerState.OfflineReplicaCountByBrokerId = data.KafkaBrokerState.OfflineReplicaCountByBrokerId
+            vm.KafkaBrokerState.OfflineLogDirsByBrokerId = data.KafkaBrokerState.OfflineLogDirsByBrokerId
+            vm.KafkaBrokerState.OnlineLogDirsByBrokerId = data.KafkaBrokerState.OnlineLogDirsByBrokerId
             console.log('Found Kafka-2.0 Features.')
           } catch (e) {
             console.log('No kafka 2.0 features found')
           }
         }
-      }, (e) => {
+      }).catch((e) => {
+        if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
         vm.loading = false
         vm.error = true
-        vm.errorData = e && e.response && e.response.data ? e.response.data : e
+        vm.errorData = e
       })
     }
   }

@@ -47,7 +47,7 @@ export default new Vuex.Store({
     },
     getnewurl: function (state, getters) {
       return function (group, label) {
-        return state.config[group][label]
+        return state.config[group] && state.config[group][label]
       }
     },
     getTaskId: function (state, getters) {

@@ -15,7 +15,7 @@
       <async-task :asyncData='asyncData'></async-task>
     </div>
     <div v-else-if='!loaded && loading'>
-      <p>Loading ...</p>
+      <div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div> Loading ...</div>
     </div>
     <div v-else>
       <table class="table table-sm table-bordered">
@@ -94,6 +94,7 @@ export default {
       errorData: null,
       async: false,
       asyncData: null,
+      asyncRetryTimer: null,
       selectedIds: [],
       actionName: null,
       actionReason: '',
@@ -105,36 +106,67 @@ export default {
   created () {
     this.getReviews()
   },
+  beforeDestroy () {
+    if (this.asyncRetryTimer) {
+      clearTimeout(this.asyncRetryTimer)
+    }
+  },
   methods: {
-    argsChanged () {
+    argsChanged (retries) {
+      retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
+      if (!newurl) {
+        if (retries < 20) {
+          setTimeout(() => this.argsChanged(retries + 1), 500)
+        }
+        return
+      }
       this.$store.commit('seturl', newurl)
       this.loaded = false
       this.newurl = newurl
+      if (this.asyncRetryTimer) {
+        clearTimeout(this.asyncRetryTimer)
+        this.asyncRetryTimer = null
+      }
       this.getReviews()
     },
     getReviews () {
       let vm = this
       vm.loading = true
       vm.selectedIds = []
-      vm.$http.get(vm.url, {withCredentials: true}).then((r) => {
-        if (r.data === null || r.data === undefined || r.data === '') {
+      window.fetch(vm.url, {credentials: 'omit'}).then((resp) => {
+        const contentType = resp.headers.get('content-type') || ''
+        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+      }).then((resp) => {
+        let data
+        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
+        if (data === null || data === undefined || data === '') {
           vm.error = true
-          vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
-        } else if (r.headers['content-type'].match(/text\/plain/) || r.data.progress) {
+          vm.errorData = 'CruiseControl sent an empty response with ' + resp.status + ' status code.'
+        } else if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
           vm.async = true
-          vm.asyncData = r.data
+          vm.asyncData = data
+          if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
+          vm.asyncRetryTimer = setTimeout(() => vm.getReviews(), 5000)
+        } else if (!resp.ok) {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
+          vm.loading = false
+          vm.error = true
+          vm.errorData = data
         } else {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.loading = false
           vm.error = false
           vm.errorData = null
-          vm.reviews = r.data.RequestInfo || []
+          vm.reviews = data.RequestInfo || []
+          vm.loaded = true
         }
-      }, (e) => {
+      }).catch((e) => {
+        if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
         vm.loading = false
         vm.error = true
-        vm.errorData = e && e.response && e.response.data ? e.response.data : e
+        vm.errorData = e.message || e
       })
     },
     doAction () {

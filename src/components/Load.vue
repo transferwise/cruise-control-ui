@@ -24,7 +24,7 @@
       <async-task :asyncData='asyncData'></async-task>
     </div>
     <div v-else-if='!loaded && loading'>
-      <p>Loading ...</p>
+      <div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div> Loading ...</div>
     </div>
     <div v-else>
       <host-load :hosts='hosts' :loading='loading' :error='error' :errorData='errorData'></host-load>
@@ -53,6 +53,7 @@ export default {
       errorData: null,
       async: false,
       asyncData: null,
+      asyncRetryTimer: null,
       // params
       allow_capacity_estimation: true,
       // broker load & host load
@@ -67,6 +68,11 @@ export default {
       this.hosts = this.rawdata.hosts
     } else {
       this.getLoad(true)
+    }
+  },
+  beforeDestroy () {
+    if (this.asyncRetryTimer) {
+      clearTimeout(this.asyncRetryTimer)
     }
   },
   watch: {
@@ -95,11 +101,22 @@ export default {
     }
   },
   methods: {
-    argsChanged () {
+    argsChanged (retries) {
+      retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
+      if (!newurl) {
+        if (retries < 20) {
+          setTimeout(() => this.argsChanged(retries + 1), 500)
+        }
+        return
+      }
       this.$store.commit('seturl', newurl)
       this.loaded = false
       this.newurl = newurl
+      if (this.asyncRetryTimer) {
+        clearTimeout(this.asyncRetryTimer)
+        this.asyncRetryTimer = null
+      }
       this.getLoad()
     },
     getLoad () {
@@ -107,43 +124,63 @@ export default {
       vm.error = false
       vm.async = false
       vm.loading = true
-      let params = {
-        withCredentials: true
+      let fetchOptions = {
+        credentials: 'omit'
       }
       // check if there is a running user-task-id for this end point in the $store
       // let task = this.$store.getters.getTaskId('proposals')
       let task = this.$store.getters.getTaskId(vm.url)
       if (task) {
-        params['headers'] = {
+        fetchOptions.headers = {
           'User-Task-ID': task
         }
       }
-      vm.$http.get(vm.url, params).then((r) => {
+      window.fetch(vm.url, fetchOptions).then((resp) => {
+        let contentType = resp.headers.get('content-type') || ''
+        let detectedUserTaskId = resp.headers.has('user-task-id')
+        let userTaskId = resp.headers.get('user-task-id')
+        return resp.text().then((text) => {
+          return { ok: resp.ok, status: resp.status, contentType, detectedUserTaskId, userTaskId, text }
+        })
+      }).then((resp) => {
         // set this so that we know if the server sends user-task-id in the response
-        vm.detectedUserTaskId = r.headers.hasOwnProperty('user-task-id')
+        vm.detectedUserTaskId = resp.detectedUserTaskId
+        if (!resp.ok) {
+          vm.loading = false
+          vm.error = true
+          vm.errorData = resp.text
+          return
+        }
         // check the actual response
-        if (r.data === null || r.data === undefined || r.data === '') {
+        let data = null
+        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
+        if (data === null || data === undefined || data === '') {
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
-        } else if (r.headers['content-type'].match(/text\/plain/) || r.data.progress) {
+        } else if (resp.contentType.match(/text\/plain/) || data.progress) {
           // capture the user-task-id only if the response is Async one
-          let task = r.headers.hasOwnProperty('user-task-id') ? r.headers['user-task-id'] : null
+          let task = resp.detectedUserTaskId ? resp.userTaskId : null
           vm.$store.commit('setTaskId', {url: vm.url, taskid: task}) // save this task for follow-up calls (null deletes in vuex)
           vm.async = true
-          vm.asyncData = r.data
+          vm.asyncData = data
           vm.showAsyncRefreshButton = true
+          if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
+          vm.asyncRetryTimer = setTimeout(() => vm.getLoad(), 5000)
         } else {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.loading = false
+          vm.loaded = true
           vm.error = false
           vm.errorData = null
-          vm.brokers = r.data.brokers || []
-          vm.hosts = r.data.hosts || []
+          vm.brokers = data.brokers || []
+          vm.hosts = data.hosts || []
         }
-      }, (e) => {
+      }).catch((e) => {
+        if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
         vm.loading = false
         vm.error = true
-        vm.errorData = e && e.response && e.response.data ? e.response.data : e
+        vm.errorData = e
       })
     }
   },

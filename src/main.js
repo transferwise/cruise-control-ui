@@ -61,6 +61,11 @@ Vue.filter('formatNumber', function (v) {
   return Number(v).toLocaleString()
 })
 
+Vue.filter('formatDecimal', function (v) {
+  let n = Number(v)
+  return isNaN(n) ? '—' : n.toFixed(2)
+})
+
 Vue.filter('camelCase', function (v) {
   return v.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')
 })

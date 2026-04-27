@@ -3,7 +3,7 @@
     <td>{{ group }}</td>
     <td>{{ cluster }}</td>
     <td colspan=5 v-if='!loaded && loading'>
-      Loading ...
+      <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Loading ...
     </td>
     <template v-else>
       <td>{{ stats_brokers }}</td>
@@ -28,7 +28,6 @@ export default {
     return {
       timer: null,
       destroyed: true,
-      req: null,
       loaded: false,
       loading: false,
       error: false,
@@ -82,42 +81,52 @@ export default {
       const vm = this
       vm.loading = true
       let url = this.url + (this.url.endsWith('/') ? 'kafka_cluster_state' : '/kafka_cluster_state')
-      vm.req = vm.$http.get(url, {params: {json: true}, withCredentials: true}).then((r) => {
-        if (r.data === null || r.data === undefined || r.data === '') {
+      url += (url.indexOf('?') === -1 ? '?' : '&') + 'json=true'
+      window.fetch(url, {credentials: 'omit'}).then((resp) => {
+        const contentType = resp.headers.get('content-type') || ''
+        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+      }).then((resp) => {
+        let data
+        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
+        if (data === null || data === undefined || data === '') {
           vm.error = true
-          vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
-        } else if (r.headers['content-type'].match(/text\/plain/) || r.data.progress) {
+          vm.errorData = 'CruiseControl sent an empty response with ' + resp.status + ' status code.'
+        } else if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
           vm.async = true
-          vm.asyncData = r.data
+          vm.asyncData = data
+        } else if (!resp.ok) {
+          vm.loading = false
+          vm.error = true
+          vm.errorData = data
         } else {
           vm.async = false
           vm.error = false
           vm.errorData = null
           vm.loading = false
           vm.loaded = true
-          vm.KafkaPartitionState.offline = r.data.KafkaPartitionState.offline
-          vm.KafkaPartitionState.urp = r.data.KafkaPartitionState.urp
-          vm.KafkaBrokerState.ReplicaCountByBrokerId = r.data.KafkaBrokerState.ReplicaCountByBrokerId
-          vm.KafkaBrokerState.OutOfSyncCountByBrokerId = r.data.KafkaBrokerState.OutOfSyncCountByBrokerId
-          vm.KafkaBrokerState.LeaderCountByBrokerId = r.data.KafkaBrokerState.LeaderCountByBrokerId
+          vm.KafkaPartitionState.offline = data.KafkaPartitionState.offline
+          vm.KafkaPartitionState.urp = data.KafkaPartitionState.urp
+          vm.KafkaBrokerState.ReplicaCountByBrokerId = data.KafkaBrokerState.ReplicaCountByBrokerId
+          vm.KafkaBrokerState.OutOfSyncCountByBrokerId = data.KafkaBrokerState.OutOfSyncCountByBrokerId
+          vm.KafkaBrokerState.LeaderCountByBrokerId = data.KafkaBrokerState.LeaderCountByBrokerId
           // only >= kafka 2.0 release
           try {
-            vm.KafkaPartitionState['with-offline-replicas'] = r.data.KafkaPartitionState['with-offline-replicas']
-            vm.KafkaPartitionState['under-min-isr'] = r.data.KafkaPartitionState['under-min-isr']
-            vm.KafkaBrokerState.OfflineReplicaCountByBrokerId = r.data.KafkaBrokerState.OfflineReplicaCountByBrokerId
-            vm.KafkaBrokerState.OfflineLogDirsByBrokerId = r.data.KafkaBrokerState.OfflineLogDirsByBrokerId
-            vm.KafkaBrokerState.OnlineLogDirsByBrokerId = r.data.KafkaBrokerState.OnlineLogDirsByBrokerId
+            vm.KafkaPartitionState['with-offline-replicas'] = data.KafkaPartitionState['with-offline-replicas']
+            vm.KafkaPartitionState['under-min-isr'] = data.KafkaPartitionState['under-min-isr']
+            vm.KafkaBrokerState.OfflineReplicaCountByBrokerId = data.KafkaBrokerState.OfflineReplicaCountByBrokerId
+            vm.KafkaBrokerState.OfflineLogDirsByBrokerId = data.KafkaBrokerState.OfflineLogDirsByBrokerId
+            vm.KafkaBrokerState.OnlineLogDirsByBrokerId = data.KafkaBrokerState.OnlineLogDirsByBrokerId
             console.log('Found Kafka-2.0 Features.')
           } catch (e) {
             console.log('No kafka 2.0 features found')
           }
         }
-        vm.poll() // fetch the data again
-      }, (e) => {
+        vm.poll()
+      }).catch((e) => {
         vm.loading = false
         vm.error = true
-        vm.errorData = e && e.response && e.response.data ? e.response.data : e
-        vm.poll() // fetch the data again
+        vm.errorData = e.message || e
+        vm.poll()
       })
     }
   },
