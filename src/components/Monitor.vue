@@ -92,7 +92,7 @@ export default {
       errorData: null,
       async: false, // when the server treats this request as async
       asyncData: null, // when the server treats the request as async and sends progress instead of actual response
-      errStopProsalExecution: false, // true when stop propsal execution is success
+      errStopProposalExecution: false, // true when stop proposal execution is success
       errDataStopProposalExecution: null, // err data of stop proposal execution
       autoRefresh: true,
       autoRefreshInterval: null,
@@ -203,9 +203,11 @@ export default {
         let data
         try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
         if (data === null || data === undefined || data === '') {
+          vm.loading = false
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with ' + resp.status + ' status code.'
         } else if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
+          vm.loading = false
           vm.async = true
           vm.asyncData = data
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
@@ -233,7 +235,7 @@ export default {
     },
     bootstrapMetrics () {
       const vm = this
-      vm.$http.get(vm.bootstrapUrl, { withCredentials: true }).then((r) => {
+      vm.$http.get(vm.bootstrapUrl).then((r) => {
         alert('Bootstrap started, cruise control will now start to read historical metrics to get to ready state, please be patient')
       }, (e) => {
         alert(e.response.data.errorMessage)
@@ -255,8 +257,7 @@ export default {
     },
     doAction () {
       const vm = this
-      console.log(vm.get_action_url)
-      this.$http.post(vm.get_action_url, { withCredentials: true }).then((r) => {
+      this.$http.post(vm.get_action_url, null, { withCredentials: true }).then((r) => {
         this.getState()
       }, (e) => {
         this.getState()

@@ -243,11 +243,11 @@ export default {
     stopProposalExecution () {
       const vm = this
       // cancel the on-going proposal execution
-      vm.$http.post(this.stopProposalExecutionURL, { withCredentials: true }).then((r) => {
-        vm.errStopProsalExecution = false
+      vm.$http.post(this.stopProposalExecutionURL, null, { withCredentials: true }).then((r) => {
+        vm.errStopProposalExecution = false
         vm.okDataStopProposalExecution = r.data
       }, (e) => {
-        vm.errStopProsalExecution = true
+        vm.errStopProposalExecution = true
         vm.errDataStopProposalExecution = e && e.response && e.response.data ? e.response.data : e
       })
     }

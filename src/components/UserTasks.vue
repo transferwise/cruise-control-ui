@@ -43,7 +43,7 @@
           <tr v-for="t in filteredTasks" :key="t.UserTaskId">
             <td>{{ t.UserTaskId }}</td>
             <td>{{ t.ClientIdentity }}</td>
-            <td>{{ (new Date(parseInt(t.StartMs, 10))).toString().substr(0, 34) }}</td>
+            <td>{{ (new Date(parseInt(t.StartMs, 10))).toLocaleString() }}</td>
             <td>{{ t.StartMs | formatLocalTime }}</td>
             <td>
               <span v-if='t.Status === "Completed"' class="badge badge-success">{{ t.Status }}</span>

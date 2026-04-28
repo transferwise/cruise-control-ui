@@ -124,7 +124,7 @@ export default {
     },
     changeState () {
       const vm = this
-      this.$http.post(vm.url, { withCredentials: true }).then((r) => {
+      this.$http.post(vm.url, null, { withCredentials: true }).then((r) => {
         vm.success = true
         window.setTimeout(function () {
           vm.success = null

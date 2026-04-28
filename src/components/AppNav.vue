@@ -94,8 +94,6 @@ export default {
       }, (e) => {
         vm.$store.commit('configError', true)
         vm.$store.commit('configErrorMessage', 'Error encountered while fetching :' + vm.$store.state.configurl)
-      }).then(() => {
-        console.log('completed')
       })
     },
     refresh () {

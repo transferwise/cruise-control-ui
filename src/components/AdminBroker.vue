@@ -690,6 +690,7 @@ export default {
       detectedUserTaskId: false, // true in case the response has user-task-id
       postError: false, // true if the POST response is an error
       showRawResponse: false, // toggle raw JSON response view
+      showAsyncRefreshButton: false, // show refresh button during async state
       dataParsed: false,
       numReplicaMovements: null,
       recentWindows: null,
@@ -1000,7 +1001,7 @@ export default {
           'User-Task-ID': task
         }
       }
-      this.$http.post(vm.actionURL, params).then((r) => {
+      this.$http.post(vm.actionURL, null, params).then((r) => {
         // set this so that we know if the server sends user-task-id in the response
         vm.detectedUserTaskId = Object.prototype.hasOwnProperty.call(r.headers, 'user-task-id')
         // store this task in local cache for future follow-up
@@ -1056,15 +1057,15 @@ export default {
       }).then((resp) => {
         // set this so that we know if the server sends user-task-id in the response
         vm.detectedUserTaskId = resp.headers.has('user-task-id')
+        let data
+        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
         if (!resp.ok) {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.loading = false
           vm.error = true
-          vm.errorData = resp.text || resp.status
+          vm.errorData = data || resp.status
           return
         }
-        let data
-        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
         // do verify the state
         if (data === null || data === undefined || data === '') {
           vm.error = true
@@ -1090,9 +1091,8 @@ export default {
             vm.KafkaBrokerState.OfflineReplicaCountByBrokerId = data.KafkaBrokerState.OfflineReplicaCountByBrokerId
             vm.KafkaBrokerState.OfflineLogDirsByBrokerId = data.KafkaBrokerState.OfflineLogDirsByBrokerId
             vm.KafkaBrokerState.OnlineLogDirsByBrokerId = data.KafkaBrokerState.OnlineLogDirsByBrokerId
-            console.log('Found Kafka-2.0 Features.')
           } catch (e) {
-            console.log('No kafka 2.0 features found')
+            // Kafka 2.0 features not available
           }
         }
       }).catch((e) => {

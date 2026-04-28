@@ -171,17 +171,17 @@ export default {
     },
     doAction () {
       const vm = this
-      vm.$http.post(vm.action_url, { withCredentials: true }).then((r) => {
+      vm.$http.post(vm.action_url, null, { withCredentials: true }).then((r) => {
         vm.getReviews()
       }, (e) => {
-        console.log('Failed to submit.')
+        // Failed to submit action
       })
     },
     submitApprovedRequest (r) {
       const action = r.EndpointWithParams
       const absUrl = this.reconstructURL(action, r.Id)
       const vm = this
-      vm.$http.post(absUrl, { withCredentials: true }).then((r) => {
+      vm.$http.post(absUrl, null, { withCredentials: true }).then((r) => {
         vm.posted = true
         vm.postResponse = r.data || 'Cruise Control Did not send a valid response. Check the server logs.'
         vm.getReviews()

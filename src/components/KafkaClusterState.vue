@@ -209,9 +209,8 @@ export default {
             vm.KafkaBrokerState.OfflineReplicaCountByBrokerId = data.KafkaBrokerState.OfflineReplicaCountByBrokerId
             vm.KafkaBrokerState.OfflineLogDirsByBrokerId = data.KafkaBrokerState.OfflineLogDirsByBrokerId
             vm.KafkaBrokerState.OnlineLogDirsByBrokerId = data.KafkaBrokerState.OnlineLogDirsByBrokerId
-            console.log('Found Kafka-2.0 Features.')
           } catch (e) {
-            console.log('No kafka 2.0 features found')
+            // Kafka 2.0 features not available
           }
         }
       }).catch((e) => {

@@ -162,7 +162,6 @@ export default {
     getState () {
       const vm = this
       vm.loading = true
-      vm.loaded = false
       window.fetch(vm.url, { credentials: 'omit' }).then((resp) => {
         const contentType = resp.headers.get('content-type') || ''
         return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
@@ -170,9 +169,11 @@ export default {
         let data
         try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
         if (data === null || data === undefined || data === '') {
+          vm.loading = false
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with ' + resp.status + ' status code.'
         } else if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
+          vm.loading = false
           vm.async = true
           vm.asyncData = data
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)

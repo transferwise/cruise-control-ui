@@ -80,7 +80,7 @@
           <div>
             <button class="btn btn-primary" @click='stopProposalExecution'>Stop Proposal Execution</button>
             <button class="btn btn-secondary" @click='okDataStopProposalExecution = null'>Clear Response</button>
-            <div v-if='errStopProsalExecution'>
+            <div v-if='errStopProposalExecution'>
               <exception :exception='errDataStopProposalExecution'></exception>
             </div>
             <div v-else>
@@ -873,7 +873,7 @@ export default {
       autoRefresh: true,
       autoRefreshInterval: null,
       asyncRetryTimer: null,
-      errStopProsalExecution: false, // true when stop propsal execution is success
+      errStopProposalExecution: false, // true when stop proposal execution is success
       errDataStopProposalExecution: null, // err data of stop proposal execution
       okDataStopProposalExecution: null, // success data from stop proposal execution
       ExecutorState: {
@@ -1148,11 +1148,11 @@ export default {
     stopProposalExecution () {
       const vm = this
       // cancel the on-going proposal execution
-      vm.$http.post(this.stopProposalExecutionURL, { withCredentials: true }).then((r) => {
-        vm.errStopProsalExecution = false
+      vm.$http.post(this.stopProposalExecutionURL, null, { withCredentials: true }).then((r) => {
+        vm.errStopProposalExecution = false
         vm.okDataStopProposalExecution = r.data
       }, (e) => {
-        vm.errStopProsalExecution = true
+        vm.errStopProposalExecution = true
         vm.errDataStopProposalExecution = e && e.response ? e.response.data : e
       })
     }

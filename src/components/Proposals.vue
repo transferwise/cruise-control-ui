@@ -356,7 +356,6 @@ export default {
           return { text, contentType, ok: resp.ok, status: resp.status, headers: resp.headers }
         })
       }).then((resp) => {
-        vm.loading = false
         // set this so that we know if the server sends user-task-id in the response
         vm.detectedUserTaskId = resp.headers.has('user-task-id')
         let data = null
@@ -366,9 +365,11 @@ export default {
           data = resp.text
         }
         if (data === null || data === undefined || data === '') {
+          vm.loading = false
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
         } else if (resp.contentType.match(/text\/plain/) || data.progress) {
+          vm.loading = false
           // save the task-id if its present in the response header
           const task = resp.headers.has('user-task-id') ? resp.headers.get('user-task-id') : null
           vm.$store.commit('setTaskId', { url: vm.url, taskid: task }) // save this task for follow-up calls (null deletes in vuex)

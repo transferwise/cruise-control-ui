@@ -154,7 +154,6 @@ export default new Router({
     }
   ],
   beforeEach: function (to, from, next) {
-    console.log('called before each : %s -> %s', to, from)
     store.commit('seturl', to)
     next()
   }
