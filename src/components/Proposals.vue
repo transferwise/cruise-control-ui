@@ -379,17 +379,23 @@ export default {
           vm.showAsyncRefreshButton = true
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
           vm.asyncRetryTimer = setTimeout(() => vm.getProposals(), 5000)
+        } else if (!resp.ok) {
+          if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
+          vm.loading = false
+          vm.error = true
+          vm.errorData = data
         } else {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.loading = false
           vm.error = false
-          // top level metadata in the response
-          vm.numReplicaMovements = data.summary.numReplicaMovements
-          vm.recentWindows = data.summary.recentWindows
-          vm.dataToMoveMB = data.summary.dataToMoveMB
-          vm.monitoredPartitionsPercentage = data.summary.monitoredPartitionsPercentage
-          vm.numLeaderMovements = data.summary.numLeaderMovements
+          // top level metadata in the response (may be nested under 'summary' or at top level)
+          const summary = data.summary || data
+          vm.numReplicaMovements = summary.numReplicaMovements
+          vm.recentWindows = summary.recentWindows
+          vm.dataToMoveMB = summary.dataToMoveMB || summary.intraBrokerDataToMoveMB
+          vm.monitoredPartitionsPercentage = summary.monitoredPartitionsPercentage
+          vm.numLeaderMovements = summary.numLeaderMovements
           // nested maps
           vm.$set(vm, 'loadBefore', data.loadBeforeOptimization)
           vm.$set(vm, 'loadAfter', data.loadAfterOptimization)

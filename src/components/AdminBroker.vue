@@ -993,29 +993,19 @@ export default {
       const params = {
         withCredentials: true
       }
-      // check if there is a running user-task-id for this end point in the $store
-      // let task = this.$store.getters.getTaskId('proposals')
-      const task = this.$store.getters.getTaskId(vm.actionURL)
-      if (task) {
-        params.headers = {
-          'User-Task-ID': task
-        }
-      }
+      // User-Task-ID header is only for polling async GET requests, not for initiating new POST actions.
+      // Sending a stale task ID on a new POST causes CC to reject with "Unexpected header" error.
       this.$http.post(vm.actionURL, null, params).then((r) => {
-        // set this so that we know if the server sends user-task-id in the response
         vm.detectedUserTaskId = Object.prototype.hasOwnProperty.call(r.headers, 'user-task-id')
-        // store this task in local cache for future follow-up
-        const task = Object.prototype.hasOwnProperty.call(r.headers, 'user-task-id') ? r.headers['user-task-id'] : null
-        vm.$store.commit('setTaskId', { url: vm.actionURL, taskid: task }) // save this task for follow-up calls (null deletes in vuex)
         vm.posted = true
         vm.postError = false
         vm.postResponse = r.data
         if (r.data && r.data.summary) {
           vm.dataParsed = true
-          vm.numReplicaMovements = r.data.summary.numReplicaMovements
+          vm.numReplicaMovements = r.data.summary.numReplicaMovements || r.data.summary.numIntraBrokerReplicaMovements
           vm.numLeaderMovements = r.data.summary.numLeaderMovements
           vm.recentWindows = r.data.summary.recentWindows
-          vm.dataToMoveMB = r.data.summary.dataToMoveMB
+          vm.dataToMoveMB = r.data.summary.dataToMoveMB || r.data.summary.intraBrokerDataToMoveMB
           vm.monitoredPartitionsPercentage = r.data.summary.monitoredPartitionsPercentage
         }
       }, (e) => {

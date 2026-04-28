@@ -92,167 +92,98 @@
           <!-- ===================== INTER-BROKER SECTION ===================== -->
           <div v-if="isInterBrokerState || isLeaderMovementState || isStoppingState">
             <h4 class="mt-2 mb-3">Inter-Broker Replica Movement Progress</h4>
-            <div class="card-deck mb-3">
-              <div class="card">
-                <div class="card-header">
-                  Total Data To Move
-                </div>
-                <div class="card-body">
-                  <div v-if='ExecutorState.totalDataToMove'>
-                    <div class="progress" style="height:20px">
-                      <div class="progress-bar progress-bar-striped progress-bar-animated" :style="'width:' + ExecutorState.finishedDataMovement / ExecutorState.totalDataToMove * 100 + '%'">Done</div>
-                    </div>
-                  </div>
-                  <h1 class="text-primary">{{ ExecutorState.totalDataToMove | formatUnits }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Finished Data Movement</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-success">{{ ExecutorState.finishedDataMovement | formatUnits }}</h1></p>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Remaining Data</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-info">{{ ExecutorState.totalDataToMove - ExecutorState.finishedDataMovement | formatUnits }}</h1></p>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">% Data Complete</div>
-                <div class="card-body">
-                  <h1 class="text-warning">{{ ExecutorState.totalDataToMove ? (ExecutorState.finishedDataMovement / ExecutorState.totalDataToMove * 100).toFixed(1) + '%' : '0%' }}</h1>
+            <!-- Data progress bar -->
+            <div v-if='ExecutorState.totalDataToMove' class="mb-2">
+              <small class="text-muted font-weight-bold">Data Movement ({{ ExecutorState.finishedDataMovement | formatUnits }} / {{ ExecutorState.totalDataToMove | formatUnits }})</small>
+              <div class="progress" style="height:28px;font-size:14px">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" :style="'width:' + ExecutorState.finishedDataMovement / ExecutorState.totalDataToMove * 100 + '%'">
+                  {{ ExecutorState.totalDataToMove ? (ExecutorState.finishedDataMovement / ExecutorState.totalDataToMove * 100).toFixed(1) + '%' : '0%' }}
                 </div>
               </div>
             </div>
-            <div class="card-deck mb-3">
-              <div class="card">
-                <div class="card-header">
-                  Total Partition Movements
-                </div>
-                <div class="card-body">
-                  <div v-if='ExecutorState.numTotalPartitionMovements'>
-                    <div class="progress" style="height:20px">
-                      <div class="progress-bar progress-bar-striped bg-success" :style="'width:' + ExecutorState.numFinishedPartitionMovements / ExecutorState.numTotalPartitionMovements * 100 + '%'">Done</div>
-                      <div class="progress-bar progress-bar-striped progress-bar-animated" :style="'width:' + getInProgressPartitionMovements.length / ExecutorState.numTotalPartitionMovements * 100 + '%'">In Progress</div>
-                    </div>
-                  </div>
-                  <h1 class="text-primary">{{ ExecutorState.numTotalPartitionMovements | formatNumber }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Finished Partition Movements</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-success">{{ ExecutorState.numFinishedPartitionMovements | formatNumber }}</h1></p>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">In Progress Partition Movements</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-warning">{{ getInProgressPartitionMovements.length | formatNumber }}</h1></p>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Remaining Partition Movements</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-info">{{ ExecutorState.numTotalPartitionMovements - ExecutorState.numFinishedPartitionMovements | formatNumber }}</h1></p>
-                </div>
+            <!-- Partition progress bar -->
+            <div v-if='ExecutorState.numTotalPartitionMovements' class="mb-3">
+              <small class="text-muted font-weight-bold">Partition Movements ({{ ExecutorState.numFinishedPartitionMovements }} / {{ ExecutorState.numTotalPartitionMovements }})</small>
+              <div class="progress" style="height:28px;font-size:14px">
+                <div class="progress-bar progress-bar-striped bg-success" :style="'width:' + ExecutorState.numFinishedPartitionMovements / ExecutorState.numTotalPartitionMovements * 100 + '%'">Done</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated" :style="'width:' + getInProgressPartitionMovements.length / ExecutorState.numTotalPartitionMovements * 100 + '%'">In Progress</div>
               </div>
             </div>
-            <div class="card-deck mb-3">
-              <div class="card">
-                <div class="card-header">
-                  Total Leadership Movements
-                </div>
-                <div class="card-body">
-                  <div v-if='ExecutorState.numTotalLeadershipMovements'>
-                    <div class="progress" style="height:20px">
-                      <div class="progress-bar progress-bar-striped progress-bar-animated" :style="'width:' + ExecutorState.numFinishedLeadershipMovements / ExecutorState.numTotalLeadershipMovements * 100 + '%'">Done</div>
-                    </div>
-                  </div>
-                  <h1 class="text-primary">{{ ExecutorState.numTotalLeadershipMovements | formatNumber }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Finished Leadership Movements</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-success">{{ ExecutorState.numFinishedLeadershipMovements | formatNumber }}</h1></p>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Remaining Leadership Movements</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-info">{{ ExecutorState.numTotalLeadershipMovements - ExecutorState.numFinishedLeadershipMovements | formatNumber }}</h1></p>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">% Leadership Complete</div>
-                <div class="card-body">
-                  <h1 class="text-warning">{{ ExecutorState.numTotalLeadershipMovements ? (ExecutorState.numFinishedLeadershipMovements / ExecutorState.numTotalLeadershipMovements * 100).toFixed(1) + '%' : '0%' }}</h1>
-                </div>
-              </div>
-            </div>
-            <!-- Inter-broker concurrency stats -->
-            <div v-if="ExecutorState.maximumConcurrentInterBrokerPartitionMovementsPerBroker != null" class="card-deck mb-3">
-              <div class="card">
-                <div class="card-header">Max Concurrent Inter-Broker Movements/Broker</div>
-                <div class="card-body">
-                  <h1 class="text-primary">{{ ExecutorState.maximumConcurrentInterBrokerPartitionMovementsPerBroker }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Min Concurrent Inter-Broker Movements/Broker</div>
-                <div class="card-body">
-                  <h1 class="text-primary">{{ ExecutorState.minimumConcurrentInterBrokerPartitionMovementsPerBroker }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Avg Concurrent Inter-Broker Movements/Broker</div>
-                <div class="card-body">
-                  <h1 class="text-primary">{{ ExecutorState.averageConcurrentInterBrokerPartitionMovementsPerBroker | formatDecimal }}</h1>
-                </div>
-              </div>
-            </div>
-            <div class="card-deck mb-3">
-              <div class="card">
-                <div class="card-header">Aborting Partitions</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-primary">{{ ExecutorState.abortingPartitions }}</h1></p>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Aborted Partitions</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-success">{{ ExecutorState.abortedPartitions }}</h1></p>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Dead Partitions</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-info">{{ ExecutorState.deadPartitions }}</h1></p>
-                </div>
-              </div>
-            </div>
+            <table class="table table-bordered mb-3">
+              <thead class="thead-light">
+                <tr>
+                  <th></th>
+                  <th>Total</th>
+                  <th class="text-success">Finished</th>
+                  <th class="text-warning">In Progress</th>
+                  <th class="text-info">Remaining</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Data</strong></td>
+                  <td>{{ ExecutorState.totalDataToMove | formatUnits }}</td>
+                  <td>{{ ExecutorState.finishedDataMovement | formatUnits }}</td>
+                  <td>-</td>
+                  <td>{{ ExecutorState.totalDataToMove - ExecutorState.finishedDataMovement | formatUnits }}</td>
+                </tr>
+                <tr>
+                  <td><strong>Partitions</strong></td>
+                  <td>{{ ExecutorState.numTotalPartitionMovements | formatNumber }}</td>
+                  <td>{{ ExecutorState.numFinishedPartitionMovements | formatNumber }}</td>
+                  <td>{{ getInProgressPartitionMovements.length | formatNumber }}</td>
+                  <td>{{ ExecutorState.numTotalPartitionMovements - ExecutorState.numFinishedPartitionMovements | formatNumber }}</td>
+                </tr>
+                <tr>
+                  <td><strong>Leadership</strong></td>
+                  <td>{{ ExecutorState.numTotalLeadershipMovements | formatNumber }}</td>
+                  <td>{{ ExecutorState.numFinishedLeadershipMovements | formatNumber }}</td>
+                  <td>-</td>
+                  <td>{{ ExecutorState.numTotalLeadershipMovements - ExecutorState.numFinishedLeadershipMovements | formatNumber }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <!-- Concurrency & abort stats -->
+            <table class="table table-bordered mb-3">
+              <thead class="thead-light">
+                <tr>
+                  <th v-if="ExecutorState.maximumConcurrentInterBrokerPartitionMovementsPerBroker != null">Max Concurrency/Broker</th>
+                  <th v-if="ExecutorState.minimumConcurrentInterBrokerPartitionMovementsPerBroker != null">Min Concurrency/Broker</th>
+                  <th v-if="ExecutorState.averageConcurrentInterBrokerPartitionMovementsPerBroker != null">Avg Concurrency/Broker</th>
+                  <th>Aborting</th>
+                  <th>Aborted</th>
+                  <th>Dead</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td v-if="ExecutorState.maximumConcurrentInterBrokerPartitionMovementsPerBroker != null">{{ ExecutorState.maximumConcurrentInterBrokerPartitionMovementsPerBroker }}</td>
+                  <td v-if="ExecutorState.minimumConcurrentInterBrokerPartitionMovementsPerBroker != null">{{ ExecutorState.minimumConcurrentInterBrokerPartitionMovementsPerBroker }}</td>
+                  <td v-if="ExecutorState.averageConcurrentInterBrokerPartitionMovementsPerBroker != null">{{ ExecutorState.averageConcurrentInterBrokerPartitionMovementsPerBroker | formatDecimal }}</td>
+                  <td>{{ ExecutorState.abortingPartitions }}</td>
+                  <td>{{ ExecutorState.abortedPartitions }}</td>
+                  <td>{{ ExecutorState.deadPartitions }}</td>
+                </tr>
+              </tbody>
+            </table>
             <!-- Inter-broker stopping stats -->
-            <div v-if="isStoppingState" class="card-deck mb-3">
-              <div class="card">
-                <div class="card-header">Cancelled Inter-Broker Movements</div>
-                <div class="card-body">
-                  <h1 class="text-warning">{{ ExecutorState.numCancelledInterBrokerPartitionMovements }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">In Progress Inter-Broker Movements</div>
-                <div class="card-body">
-                  <h1 class="text-info">{{ ExecutorState.numInProgressInterBrokerPartitionMovements }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Aborting Inter-Broker Movements</div>
-                <div class="card-body">
-                  <h1 class="text-danger">{{ ExecutorState.numAbortingInterBrokerPartitionMovements }}</h1>
-                </div>
-              </div>
+            <div v-if="isStoppingState">
+              <table class="table table-bordered mb-3">
+                <thead class="thead-light">
+                  <tr>
+                    <th class="text-warning">Cancelled</th>
+                    <th class="text-info">In Progress</th>
+                    <th class="text-danger">Aborting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{{ ExecutorState.numCancelledInterBrokerPartitionMovements }}</td>
+                    <td>{{ ExecutorState.numInProgressInterBrokerPartitionMovements }}</td>
+                    <td>{{ ExecutorState.numAbortingInterBrokerPartitionMovements }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -260,133 +191,90 @@
           <div v-if="isIntraBrokerState || isStoppingState">
             <hr>
             <h4 class="mt-2 mb-3">Intra-Broker Replica Movement Progress</h4>
-            <!-- Data movement cards -->
-            <div v-if="isIntraBrokerState" class="card-deck mb-3">
-              <div class="card">
-                <div class="card-header">Total Intra-Broker Data To Move</div>
-                <div class="card-body">
-                  <div v-if='ExecutorState.totalIntraBrokerDataToMove'>
-                    <div class="progress" style="height:20px">
-                      <div class="progress-bar progress-bar-striped progress-bar-animated" :style="'width:' + ExecutorState.finishedIntraBrokerDataMovement / ExecutorState.totalIntraBrokerDataToMove * 100 + '%'">Done</div>
-                    </div>
+            <div v-if="isIntraBrokerState">
+              <!-- Data progress bar -->
+              <div v-if='ExecutorState.totalIntraBrokerDataToMove' class="mb-2">
+                <small class="text-muted font-weight-bold">Data Movement ({{ ExecutorState.finishedIntraBrokerDataMovement | formatUnits }} / {{ ExecutorState.totalIntraBrokerDataToMove | formatUnits }})</small>
+                <div class="progress" style="height:28px;font-size:14px">
+                  <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" :style="'width:' + ExecutorState.finishedIntraBrokerDataMovement / ExecutorState.totalIntraBrokerDataToMove * 100 + '%'">
+                    {{ ExecutorState.totalIntraBrokerDataToMove ? (ExecutorState.finishedIntraBrokerDataMovement / ExecutorState.totalIntraBrokerDataToMove * 100).toFixed(1) + '%' : '0%' }}
                   </div>
-                  <h1 class="text-primary">{{ ExecutorState.totalIntraBrokerDataToMove | formatUnits }}</h1>
                 </div>
               </div>
-              <div class="card">
-                <div class="card-header">Finished Intra-Broker Data Movement</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-success">{{ ExecutorState.finishedIntraBrokerDataMovement | formatUnits }}</h1></p>
+              <!-- Partition progress bar -->
+              <div v-if='ExecutorState.numTotalIntraBrokerPartitionMovements' class="mb-3">
+                <small class="text-muted font-weight-bold">Partition Movements ({{ ExecutorState.numFinishedIntraBrokerPartitionMovements }} / {{ ExecutorState.numTotalIntraBrokerPartitionMovements }})</small>
+                <div class="progress" style="height:28px;font-size:14px">
+                  <div class="progress-bar progress-bar-striped bg-success" :style="'width:' + ExecutorState.numFinishedIntraBrokerPartitionMovements / ExecutorState.numTotalIntraBrokerPartitionMovements * 100 + '%'">Done</div>
+                  <div class="progress-bar progress-bar-striped progress-bar-animated" :style="'width:' + getInProgressIntraBrokerPartitionMovements.length / ExecutorState.numTotalIntraBrokerPartitionMovements * 100 + '%'">In Progress</div>
                 </div>
               </div>
-              <div class="card">
-                <div class="card-header">Remaining Intra-Broker Data</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-info">{{ ExecutorState.totalIntraBrokerDataToMove - ExecutorState.finishedIntraBrokerDataMovement | formatUnits }}</h1></p>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">% Data Complete</div>
-                <div class="card-body">
-                  <h1 class="text-warning">{{ ExecutorState.totalIntraBrokerDataToMove ? (ExecutorState.finishedIntraBrokerDataMovement / ExecutorState.totalIntraBrokerDataToMove * 100).toFixed(1) + '%' : '0%' }}</h1>
-                </div>
-              </div>
-            </div>
-            <!-- Partition movement counts -->
-            <div v-if="isIntraBrokerState" class="card-deck mb-3">
-              <div class="card">
-                <div class="card-header">Total Intra-Broker Partition Movements</div>
-                <div class="card-body">
-                  <div v-if='ExecutorState.numTotalIntraBrokerPartitionMovements'>
-                    <div class="progress" style="height:20px">
-                      <div class="progress-bar progress-bar-striped bg-success" :style="'width:' + ExecutorState.numFinishedIntraBrokerPartitionMovements / ExecutorState.numTotalIntraBrokerPartitionMovements * 100 + '%'">Done</div>
-                      <div class="progress-bar progress-bar-striped progress-bar-animated" :style="'width:' + getInProgressIntraBrokerPartitionMovements.length / ExecutorState.numTotalIntraBrokerPartitionMovements * 100 + '%'">In Progress</div>
-                    </div>
-                  </div>
-                  <h1 class="text-primary">{{ ExecutorState.numTotalIntraBrokerPartitionMovements | formatNumber }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Finished Intra-Broker Partition Movements</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-success">{{ ExecutorState.numFinishedIntraBrokerPartitionMovements | formatNumber }}</h1></p>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">In Progress Intra-Broker Partition Movements</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-warning">{{ getInProgressIntraBrokerPartitionMovements.length | formatNumber }}</h1></p>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Remaining Intra-Broker Partition Movements</div>
-                <div class="card-body">
-                  <p class="card-text"><h1 class="text-info">{{ ExecutorState.numTotalIntraBrokerPartitionMovements - ExecutorState.numFinishedIntraBrokerPartitionMovements | formatNumber }}</h1></p>
-                </div>
-              </div>
-            </div>
-            <!-- Intra-broker detailed counts: pending, in-progress, aborting -->
-            <div v-if="isIntraBrokerState" class="card-deck mb-3">
-              <div class="card">
-                <div class="card-header">Pending Intra-Broker Movements</div>
-                <div class="card-body">
-                  <h1 class="text-warning">{{ ExecutorState.numPendingIntraBrokerPartitionMovements }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">In Progress Intra-Broker Movements</div>
-                <div class="card-body">
-                  <h1 class="text-info">{{ ExecutorState.numInProgressIntraBrokerPartitionMovements }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Aborting Intra-Broker Movements</div>
-                <div class="card-body">
-                  <h1 class="text-danger">{{ ExecutorState.numAbortingIntraBrokerPartitionMovements }}</h1>
-                </div>
-              </div>
-            </div>
-            <!-- Intra-broker concurrency stats -->
-            <div v-if="ExecutorState.maximumConcurrentIntraBrokerPartitionMovementsPerBroker != null" class="card-deck mb-3">
-              <div class="card">
-                <div class="card-header">Max Concurrent Intra-Broker Movements/Broker</div>
-                <div class="card-body">
-                  <h1 class="text-primary">{{ ExecutorState.maximumConcurrentIntraBrokerPartitionMovementsPerBroker }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Min Concurrent Intra-Broker Movements/Broker</div>
-                <div class="card-body">
-                  <h1 class="text-primary">{{ ExecutorState.minimumConcurrentIntraBrokerPartitionMovementsPerBroker }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Avg Concurrent Intra-Broker Movements/Broker</div>
-                <div class="card-body">
-                  <h1 class="text-primary">{{ ExecutorState.averageConcurrentIntraBrokerPartitionMovementsPerBroker | formatDecimal }}</h1>
-                </div>
-              </div>
+              <table class="table table-bordered mb-3">
+                <thead class="thead-light">
+                  <tr>
+                    <th></th>
+                    <th>Total</th>
+                    <th class="text-success">Finished</th>
+                    <th class="text-warning">Pending</th>
+                    <th class="text-info">In Progress</th>
+                    <th class="text-danger">Aborting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Data</strong></td>
+                    <td>{{ ExecutorState.totalIntraBrokerDataToMove | formatUnits }}</td>
+                    <td>{{ ExecutorState.finishedIntraBrokerDataMovement | formatUnits }}</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Partitions</strong></td>
+                    <td>{{ ExecutorState.numTotalIntraBrokerPartitionMovements | formatNumber }}</td>
+                    <td>{{ ExecutorState.numFinishedIntraBrokerPartitionMovements | formatNumber }}</td>
+                    <td>{{ ExecutorState.numPendingIntraBrokerPartitionMovements | formatNumber }}</td>
+                    <td>{{ ExecutorState.numInProgressIntraBrokerPartitionMovements | formatNumber }}</td>
+                    <td>{{ ExecutorState.numAbortingIntraBrokerPartitionMovements | formatNumber }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <!-- Concurrency stats -->
+              <table v-if="ExecutorState.maximumConcurrentIntraBrokerPartitionMovementsPerBroker != null" class="table table-bordered mb-3">
+                <thead class="thead-light">
+                  <tr>
+                    <th>Max Concurrency/Broker</th>
+                    <th>Min Concurrency/Broker</th>
+                    <th>Avg Concurrency/Broker</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{{ ExecutorState.maximumConcurrentIntraBrokerPartitionMovementsPerBroker }}</td>
+                    <td>{{ ExecutorState.minimumConcurrentIntraBrokerPartitionMovementsPerBroker }}</td>
+                    <td>{{ ExecutorState.averageConcurrentIntraBrokerPartitionMovementsPerBroker | formatDecimal }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
             <!-- Stopping state: intra-broker cancelled/in-progress/aborting counts -->
-            <div v-if="isStoppingState" class="card-deck mb-3">
-              <div class="card">
-                <div class="card-header">Cancelled Intra-Broker Movements</div>
-                <div class="card-body">
-                  <h1 class="text-warning">{{ ExecutorState.numCancelledIntraBrokerPartitionMovements }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">In Progress Intra-Broker Movements</div>
-                <div class="card-body">
-                  <h1 class="text-info">{{ ExecutorState.numInProgressIntraBrokerPartitionMovements }}</h1>
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-header">Aborting Intra-Broker Movements</div>
-                <div class="card-body">
-                  <h1 class="text-danger">{{ ExecutorState.numAbortingIntraBrokerPartitionMovements }}</h1>
-                </div>
-              </div>
+            <div v-if="isStoppingState">
+              <table class="table table-bordered mb-3">
+                <thead class="thead-light">
+                  <tr>
+                    <th class="text-warning">Cancelled</th>
+                    <th class="text-info">In Progress</th>
+                    <th class="text-danger">Aborting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{{ ExecutorState.numCancelledIntraBrokerPartitionMovements }}</td>
+                    <td>{{ ExecutorState.numInProgressIntraBrokerPartitionMovements }}</td>
+                    <td>{{ ExecutorState.numAbortingIntraBrokerPartitionMovements }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
