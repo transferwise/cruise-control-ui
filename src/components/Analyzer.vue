@@ -62,6 +62,8 @@
 
 <script>
 import BooleanEL from '@/components/BooleanEL'
+import { AUTO_REFRESH_INTERVAL, ASYNC_RETRY_DELAY, ARGS_RETRY_MAX, ARGS_RETRY_DELAY } from '@/constants'
+import fetchCC from '@/fetchCC'
 
 export default {
   name: 'Analyzer',
@@ -96,7 +98,7 @@ export default {
       if (!this.loading) {
         this.getState()
       }
-    }, 30000)
+    }, AUTO_REFRESH_INTERVAL)
   },
   beforeDestroy () {
     if (this.autoRefreshInterval) {
@@ -127,8 +129,8 @@ export default {
       retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
       if (!newurl) {
-        if (retries < 20) {
-          setTimeout(() => this.argsChanged(retries + 1), 500)
+        if (retries < ARGS_RETRY_MAX) {
+          setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
         }
         return
       }
@@ -156,40 +158,35 @@ export default {
           if (!this.loading) {
             this.getState()
           }
-        }, 30000)
+        }, AUTO_REFRESH_INTERVAL)
       }
     },
     getState () {
       const vm = this
       vm.loading = true
-      window.fetch(vm.url, { credentials: 'omit' }).then((resp) => {
-        const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
-      }).then((resp) => {
-        let data
-        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
-        if (data === null || data === undefined || data === '') {
+      fetchCC(vm.url).then((result) => {
+        if (result.type === 'empty') {
           vm.loading = false
           vm.error = true
-          vm.errorData = 'CruiseControl sent an empty response with ' + resp.status + ' status code.'
-        } else if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
+          vm.errorData = 'CruiseControl sent an empty response with ' + result.status + ' status code.'
+        } else if (result.type === 'async') {
           vm.loading = false
           vm.async = true
-          vm.asyncData = data
+          vm.asyncData = result.data
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
-          vm.asyncRetryTimer = setTimeout(() => vm.getState(), 5000)
-        } else if (!resp.ok) {
+          vm.asyncRetryTimer = setTimeout(() => vm.getState(), ASYNC_RETRY_DELAY)
+        } else if (result.type === 'error') {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.loading = false
           vm.error = true
-          vm.errorData = data
+          vm.errorData = result.data
         } else {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.error = false
           vm.errorData = null
           vm.loading = false
-          vm.$set(vm, 'AnalyzerState', data.AnalyzerState)
+          vm.$set(vm, 'AnalyzerState', result.data.AnalyzerState)
           vm.loaded = true
         }
       }).catch((e) => {

@@ -282,49 +282,23 @@
           <div class="mb-3">
             <h4 class="mt-2 mb-3">Running Reassignments</h4>
             <!-- In-progress inter-broker movements table -->
-            <div v-if="(isInterBrokerState || isStoppingState) && getInProgressPartitionMovements.length" class="mb-3">
-              <h5>In Progress Inter-Broker Movements ({{ getInProgressPartitionMovements.length }})</h5>
-              <table class="table table-sm table-bordered table-striped">
-                <thead class="thead-dark">
-                  <tr>
-                    <th>Topic</th>
-                    <th>Partition</th>
-                    <th>Old Replica</th>
-                    <th>New Replica</th>
-                    <th>Movement Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(h, idx) in getInProgressPartitionMovements" :key="idx">
-                    <td>{{ h.proposal.topicPartition.topic }}</td>
-                    <td>{{ h.proposal.topicPartition.partition }}</td>
-                    <td>{{ h.proposal.oldReplicas.join(',') }}</td>
-                    <td>{{ h.proposal.newReplicas.join(',') }}</td>
-                    <td>{{ h.type }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <inter-broker-movement-table
+              v-if="isInterBrokerState || isStoppingState"
+              title="In Progress Inter-Broker Movements"
+              :movements="getInProgressPartitionMovements"
+              :hide-empty="true"
+              table-class="table table-sm table-bordered table-striped"
+              thead-class="thead-dark"
+            />
             <!-- In-progress intra-broker movements table -->
-            <div v-if="(isIntraBrokerState || isStoppingState) && getInProgressIntraBrokerPartitionMovements.length" class="mb-3">
-              <h5>In Progress Intra-Broker Movements ({{ getInProgressIntraBrokerPartitionMovements.length }})</h5>
-              <table class="table table-sm table-bordered table-striped">
-                <thead class="thead-dark">
-                  <tr>
-                    <th>Topic</th>
-                    <th>Partition</th>
-                    <th>Broker ID</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(h, idx) in getInProgressIntraBrokerPartitionMovements" :key="idx">
-                    <td>{{ h.proposal.topicPartition.topic }}</td>
-                    <td>{{ h.proposal.topicPartition.partition }}</td>
-                    <td>{{ h.brokerId }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <intra-broker-movement-table
+              v-if="isIntraBrokerState || isStoppingState"
+              title="In Progress Intra-Broker Movements"
+              :movements="getInProgressIntraBrokerPartitionMovements"
+              :hide-empty="true"
+              table-class="table table-sm table-bordered table-striped"
+              thead-class="thead-dark"
+            />
           </div>
 
           <!-- ===================== MOVEMENT DETAILS (below Running Reassignments) ===================== -->
@@ -334,217 +308,19 @@
               {{ showInterBrokerDetails ? 'Hide' : 'Show' }} Movement Details
             </button>
             <div v-if="showInterBrokerDetails">
-              <div class="card-deck mb-3">
-                <h4>Completed Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Old Replica</th>
-                      <th>New Replica</th>
-                      <th>Movement Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in ExecutorState.completedPartitionMovement" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.proposal.oldReplicas.join(',') }}</td>
-                      <td>{{ h.proposal.newReplicas.join(',') }}</td>
-                      <td>{{ h.type }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card-deck mb-3">
-                <h4>Pending Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Old Replica</th>
-                      <th>New Replica</th>
-                      <th>Movement Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in getPendingPartitionMovements" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.proposal.oldReplicas.join(',') }}</td>
-                      <td>{{ h.proposal.newReplicas.join(',') }}</td>
-                      <td>{{ h.type }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card-deck mb-3">
-                <h4>In Progress Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Old Replica</th>
-                      <th>New Replica</th>
-                      <th>Movement Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in getInProgressPartitionMovements" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.proposal.oldReplicas.join(',') }}</td>
-                      <td>{{ h.proposal.newReplicas.join(',') }}</td>
-                      <td>{{ h.type }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card-deck mb-3">
-                <h4>Aborting Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Old Replica</th>
-                      <th>New Replica</th>
-                      <th>Movement Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in ExecutorState.abortingPartitionMovement" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.proposal.oldReplicas.join(',') }}</td>
-                      <td>{{ h.proposal.newReplicas.join(',') }}</td>
-                      <td>{{ h.type }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card-deck mb-3">
-                <h4>Aborted Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Old Replica</th>
-                      <th>New Replica</th>
-                      <th>Movement Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in ExecutorState.abortedPartitionMovement" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.proposal.oldReplicas.join(',') }}</td>
-                      <td>{{ h.proposal.newReplicas.join(',') }}</td>
-                      <td>{{ h.type }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card-deck mb-3">
-                <h4>Dead partition Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Old Replica</th>
-                      <th>New Replica</th>
-                      <th>Movement Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in ExecutorState.deadPartitionMovement" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.proposal.oldReplicas.join(',') }}</td>
-                      <td>{{ h.proposal.newReplicas.join(',') }}</td>
-                      <td>{{ h.type }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <inter-broker-movement-table title="Completed Movements" :movements="ExecutorState.completedPartitionMovement" />
+              <inter-broker-movement-table title="Pending Movements" :movements="getPendingPartitionMovements" />
+              <inter-broker-movement-table title="In Progress Movements" :movements="getInProgressPartitionMovements" />
+              <inter-broker-movement-table title="Aborting Movements" :movements="ExecutorState.abortingPartitionMovement" />
+              <inter-broker-movement-table title="Aborted Movements" :movements="ExecutorState.abortedPartitionMovement" />
+              <inter-broker-movement-table title="Dead partition Movements" :movements="ExecutorState.deadPartitionMovement" />
             </div>
           </div>
           <!-- Stopping state: inter-broker verbose tables -->
           <div v-if="isStoppingState">
-            <div class="card-deck mb-3" v-if="ExecutorState.cancelledInterBrokerPartitionMovement && ExecutorState.cancelledInterBrokerPartitionMovement.length">
-              <h4>Cancelled Inter-Broker Movements</h4>
-              <table class="table table-sm table-bordered">
-                <thead class="thead-light">
-                  <tr>
-                    <th>Topic</th>
-                    <th>Partition</th>
-                    <th>Old Replica</th>
-                    <th>New Replica</th>
-                    <th>Movement Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(h, idx) in ExecutorState.cancelledInterBrokerPartitionMovement" :key="idx">
-                    <td>{{ h.proposal.topicPartition.topic }}</td>
-                    <td>{{ h.proposal.topicPartition.partition }}</td>
-                    <td>{{ h.proposal.oldReplicas.join(',') }}</td>
-                    <td>{{ h.proposal.newReplicas.join(',') }}</td>
-                    <td>{{ h.type }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="card-deck mb-3" v-if="ExecutorState.inProgressInterBrokerPartitionMovement && ExecutorState.inProgressInterBrokerPartitionMovement.length">
-              <h4>In Progress Inter-Broker Movements</h4>
-              <table class="table table-sm table-bordered">
-                <thead class="thead-light">
-                  <tr>
-                    <th>Topic</th>
-                    <th>Partition</th>
-                    <th>Old Replica</th>
-                    <th>New Replica</th>
-                    <th>Movement Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(h, idx) in ExecutorState.inProgressInterBrokerPartitionMovement" :key="idx">
-                    <td>{{ h.proposal.topicPartition.topic }}</td>
-                    <td>{{ h.proposal.topicPartition.partition }}</td>
-                    <td>{{ h.proposal.oldReplicas.join(',') }}</td>
-                    <td>{{ h.proposal.newReplicas.join(',') }}</td>
-                    <td>{{ h.type }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="card-deck mb-3" v-if="ExecutorState.abortingInterBrokerPartitionMovement && ExecutorState.abortingInterBrokerPartitionMovement.length">
-              <h4>Aborting Inter-Broker Movements</h4>
-              <table class="table table-sm table-bordered">
-                <thead class="thead-light">
-                  <tr>
-                    <th>Topic</th>
-                    <th>Partition</th>
-                    <th>Old Replica</th>
-                    <th>New Replica</th>
-                    <th>Movement Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(h, idx) in ExecutorState.abortingInterBrokerPartitionMovement" :key="idx">
-                    <td>{{ h.proposal.topicPartition.topic }}</td>
-                    <td>{{ h.proposal.topicPartition.partition }}</td>
-                    <td>{{ h.proposal.oldReplicas.join(',') }}</td>
-                    <td>{{ h.proposal.newReplicas.join(',') }}</td>
-                    <td>{{ h.type }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <inter-broker-movement-table title="Cancelled Inter-Broker Movements" :movements="ExecutorState.cancelledInterBrokerPartitionMovement" :hide-empty="true" />
+            <inter-broker-movement-table title="In Progress Inter-Broker Movements" :movements="ExecutorState.inProgressInterBrokerPartitionMovement" :hide-empty="true" />
+            <inter-broker-movement-table title="Aborting Inter-Broker Movements" :movements="ExecutorState.abortingInterBrokerPartitionMovement" :hide-empty="true" />
           </div>
           <!-- Intra-broker verbose tables (active intra-broker state) -->
           <div v-if="isIntraBrokerState">
@@ -552,181 +328,19 @@
               {{ showIntraBrokerDetails ? 'Hide' : 'Show' }} Intra-Broker Movement Details
             </button>
             <div v-if="showIntraBrokerDetails">
-              <div class="card-deck mb-3">
-                <h4>Completed Intra-Broker Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Broker ID</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in ExecutorState.completedIntraBrokerPartitionMovement" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.brokerId }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card-deck mb-3">
-                <h4>Pending Intra-Broker Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Broker ID</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in getPendingIntraBrokerPartitionMovements" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.brokerId }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card-deck mb-3">
-                <h4>In Progress Intra-Broker Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Broker ID</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in getInProgressIntraBrokerPartitionMovements" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.brokerId }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card-deck mb-3">
-                <h4>Aborting Intra-Broker Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Broker ID</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in ExecutorState.abortingIntraBrokerPartitionMovement" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.brokerId }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card-deck mb-3">
-                <h4>Aborted Intra-Broker Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Broker ID</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in ExecutorState.abortedIntraBrokerPartitionMovement" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.brokerId }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="card-deck mb-3">
-                <h4>Dead Intra-Broker Movements</h4>
-                <table class="table table-sm table-bordered">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Topic</th>
-                      <th>Partition</th>
-                      <th>Broker ID</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(h, idx) in ExecutorState.deadIntraBrokerPartitionMovement" :key="idx">
-                      <td>{{ h.proposal.topicPartition.topic }}</td>
-                      <td>{{ h.proposal.topicPartition.partition }}</td>
-                      <td>{{ h.brokerId }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <intra-broker-movement-table title="Completed Intra-Broker Movements" :movements="ExecutorState.completedIntraBrokerPartitionMovement" />
+              <intra-broker-movement-table title="Pending Intra-Broker Movements" :movements="getPendingIntraBrokerPartitionMovements" />
+              <intra-broker-movement-table title="In Progress Intra-Broker Movements" :movements="getInProgressIntraBrokerPartitionMovements" />
+              <intra-broker-movement-table title="Aborting Intra-Broker Movements" :movements="ExecutorState.abortingIntraBrokerPartitionMovement" />
+              <intra-broker-movement-table title="Aborted Intra-Broker Movements" :movements="ExecutorState.abortedIntraBrokerPartitionMovement" />
+              <intra-broker-movement-table title="Dead Intra-Broker Movements" :movements="ExecutorState.deadIntraBrokerPartitionMovement" />
             </div>
           </div>
           <!-- Stopping state: intra-broker verbose tables -->
           <div v-if="isStoppingState">
-            <div class="card-deck mb-3" v-if="ExecutorState.cancelledIntraBrokerPartitionMovement && ExecutorState.cancelledIntraBrokerPartitionMovement.length">
-              <h4>Cancelled Intra-Broker Movements</h4>
-              <table class="table table-sm table-bordered">
-                <thead class="thead-light">
-                  <tr>
-                    <th>Topic</th>
-                    <th>Partition</th>
-                    <th>Broker ID</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(h, idx) in ExecutorState.cancelledIntraBrokerPartitionMovement" :key="idx">
-                    <td>{{ h.proposal.topicPartition.topic }}</td>
-                    <td>{{ h.proposal.topicPartition.partition }}</td>
-                    <td>{{ h.brokerId }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="card-deck mb-3" v-if="ExecutorState.inProgressIntraBrokerPartitionMovement && ExecutorState.inProgressIntraBrokerPartitionMovement.length">
-              <h4>In Progress Intra-Broker Movements</h4>
-              <table class="table table-sm table-bordered">
-                <thead class="thead-light">
-                  <tr>
-                    <th>Topic</th>
-                    <th>Partition</th>
-                    <th>Broker ID</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(h, idx) in ExecutorState.inProgressIntraBrokerPartitionMovement" :key="idx">
-                    <td>{{ h.proposal.topicPartition.topic }}</td>
-                    <td>{{ h.proposal.topicPartition.partition }}</td>
-                    <td>{{ h.brokerId }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="card-deck mb-3" v-if="ExecutorState.abortingIntraBrokerPartitionMovement && ExecutorState.abortingIntraBrokerPartitionMovement.length">
-              <h4>Aborting Intra-Broker Movements</h4>
-              <table class="table table-sm table-bordered">
-                <thead class="thead-light">
-                  <tr>
-                    <th>Topic</th>
-                    <th>Partition</th>
-                    <th>Broker ID</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(h, idx) in ExecutorState.abortingIntraBrokerPartitionMovement" :key="idx">
-                    <td>{{ h.proposal.topicPartition.topic }}</td>
-                    <td>{{ h.proposal.topicPartition.partition }}</td>
-                    <td>{{ h.brokerId }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <intra-broker-movement-table title="Cancelled Intra-Broker Movements" :movements="ExecutorState.cancelledIntraBrokerPartitionMovement" :hide-empty="true" />
+            <intra-broker-movement-table title="In Progress Intra-Broker Movements" :movements="ExecutorState.inProgressIntraBrokerPartitionMovement" :hide-empty="true" />
+            <intra-broker-movement-table title="Aborting Intra-Broker Movements" :movements="ExecutorState.abortingIntraBrokerPartitionMovement" :hide-empty="true" />
           </div>
 
         </div>
@@ -737,6 +351,69 @@
 
 <script>
 import BooleanEL from '@/components/BooleanEL'
+import InterBrokerMovementTable from '@/components/InterBrokerMovementTable'
+import IntraBrokerMovementTable from '@/components/IntraBrokerMovementTable'
+import { AUTO_REFRESH_INTERVAL, ASYNC_RETRY_DELAY, ARGS_RETRY_MAX, ARGS_RETRY_DELAY } from '@/constants'
+import fetchCC from '@/fetchCC'
+
+const DEFAULT_EXECUTOR_STATE = {
+  state: null,
+  // Inter-broker fields
+  totalDataToMove: 0,
+  finishedDataMovement: 0,
+  numTotalLeadershipMovements: 0,
+  numFinishedLeadershipMovements: 0,
+  numTotalPartitionMovements: 0,
+  numFinishedPartitionMovements: 0,
+  abortingPartitions: 0,
+  abortedPartitions: 0,
+  deadPartitions: 0,
+  numFinishedPartitions: 0,
+  numTotalPartitions: 0,
+  completedPartitionMovement: [],
+  pendingPartitionMovement: [],
+  inProgressPartitionMovement: [],
+  abortingPartitionMovement: [],
+  abortedPartitionMovement: [],
+  deadPartitionMovement: [],
+  // Inter-broker concurrency
+  maximumConcurrentInterBrokerPartitionMovementsPerBroker: null,
+  minimumConcurrentInterBrokerPartitionMovementsPerBroker: null,
+  averageConcurrentInterBrokerPartitionMovementsPerBroker: null,
+  // Inter-broker stopping fields
+  numCancelledInterBrokerPartitionMovements: 0,
+  numInProgressInterBrokerPartitionMovements: 0,
+  numAbortingInterBrokerPartitionMovements: 0,
+  cancelledInterBrokerPartitionMovement: [],
+  inProgressInterBrokerPartitionMovement: [],
+  abortingInterBrokerPartitionMovement: [],
+  // Intra-broker fields
+  numTotalIntraBrokerPartitionMovements: 0,
+  numFinishedIntraBrokerPartitionMovements: 0,
+  numPendingIntraBrokerPartitionMovements: 0,
+  numInProgressIntraBrokerPartitionMovements: 0,
+  numAbortingIntraBrokerPartitionMovements: 0,
+  totalIntraBrokerDataToMove: 0,
+  finishedIntraBrokerDataMovement: 0,
+  // Intra-broker concurrency
+  maximumConcurrentIntraBrokerPartitionMovementsPerBroker: null,
+  minimumConcurrentIntraBrokerPartitionMovementsPerBroker: null,
+  averageConcurrentIntraBrokerPartitionMovementsPerBroker: null,
+  // Intra-broker verbose
+  completedIntraBrokerPartitionMovement: [],
+  pendingIntraBrokerPartitionMovement: [],
+  inProgressIntraBrokerPartitionMovement: [],
+  abortingIntraBrokerPartitionMovement: [],
+  abortedIntraBrokerPartitionMovement: [],
+  deadIntraBrokerPartitionMovement: [],
+  // Intra-broker stopping fields
+  numCancelledIntraBrokerPartitionMovements: 0,
+  cancelledIntraBrokerPartitionMovement: [],
+  // Triggered task info
+  triggeredUserTaskId: null,
+  triggeredSelfHealingTaskId: null,
+  triggeredTaskReason: null
+}
 
 export default {
   name: 'Executor',
@@ -745,7 +422,9 @@ export default {
     cluster: String
   },
   components: {
-    BooleanEL
+    BooleanEL,
+    InterBrokerMovementTable,
+    IntraBrokerMovementTable
   },
   data () {
     return {
@@ -764,64 +443,7 @@ export default {
       errStopProposalExecution: false, // true when stop proposal execution is success
       errDataStopProposalExecution: null, // err data of stop proposal execution
       okDataStopProposalExecution: null, // success data from stop proposal execution
-      ExecutorState: {
-        state: null,
-        // Inter-broker fields
-        totalDataToMove: 0,
-        finishedDataMovement: 0,
-        numTotalLeadershipMovements: 0,
-        numFinishedLeadershipMovements: 0,
-        numTotalPartitionMovements: 0,
-        numFinishedPartitionMovements: 0,
-        abortingPartitions: 0,
-        abortedPartitions: 0,
-        deadPartitions: 0,
-        numFinishedPartitions: 0,
-        numTotalPartitions: 0,
-        completedPartitionMovement: [],
-        pendingPartitionMovement: [],
-        inProgressPartitionMovement: [],
-        abortingPartitionMovement: [],
-        abortedPartitionMovement: [],
-        deadPartitionMovement: [],
-        // Inter-broker concurrency
-        maximumConcurrentInterBrokerPartitionMovementsPerBroker: null,
-        minimumConcurrentInterBrokerPartitionMovementsPerBroker: null,
-        averageConcurrentInterBrokerPartitionMovementsPerBroker: null,
-        // Inter-broker stopping fields
-        numCancelledInterBrokerPartitionMovements: 0,
-        numInProgressInterBrokerPartitionMovements: 0,
-        numAbortingInterBrokerPartitionMovements: 0,
-        cancelledInterBrokerPartitionMovement: [],
-        inProgressInterBrokerPartitionMovement: [],
-        abortingInterBrokerPartitionMovement: [],
-        // Intra-broker fields
-        numTotalIntraBrokerPartitionMovements: 0,
-        numFinishedIntraBrokerPartitionMovements: 0,
-        numPendingIntraBrokerPartitionMovements: 0,
-        numInProgressIntraBrokerPartitionMovements: 0,
-        numAbortingIntraBrokerPartitionMovements: 0,
-        totalIntraBrokerDataToMove: 0,
-        finishedIntraBrokerDataMovement: 0,
-        // Intra-broker concurrency
-        maximumConcurrentIntraBrokerPartitionMovementsPerBroker: null,
-        minimumConcurrentIntraBrokerPartitionMovementsPerBroker: null,
-        averageConcurrentIntraBrokerPartitionMovementsPerBroker: null,
-        // Intra-broker verbose
-        completedIntraBrokerPartitionMovement: [],
-        pendingIntraBrokerPartitionMovement: [],
-        inProgressIntraBrokerPartitionMovement: [],
-        abortingIntraBrokerPartitionMovement: [],
-        abortedIntraBrokerPartitionMovement: [],
-        deadIntraBrokerPartitionMovement: [],
-        // Intra-broker stopping fields
-        numCancelledIntraBrokerPartitionMovements: 0,
-        cancelledIntraBrokerPartitionMovement: [],
-        // Triggered task info
-        triggeredUserTaskId: null,
-        triggeredSelfHealingTaskId: null,
-        triggeredTaskReason: null
-      }
+      ExecutorState: JSON.parse(JSON.stringify(DEFAULT_EXECUTOR_STATE))
     }
   },
   created () {
@@ -830,7 +452,7 @@ export default {
       if (!this.loading) {
         this.getState()
       }
-    }, 30000)
+    }, AUTO_REFRESH_INTERVAL)
   },
   beforeDestroy () {
     if (this.autoRefreshInterval) {
@@ -959,8 +581,8 @@ export default {
       retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
       if (!newurl) {
-        if (retries < 20) {
-          setTimeout(() => this.argsChanged(retries + 1), 500)
+        if (retries < ARGS_RETRY_MAX) {
+          setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
         }
         return
       }
@@ -982,34 +604,29 @@ export default {
       vm.loading = true
       // Use fetch with credentials:'omit' to prevent session cookie from being sent.
       // CC's UserTaskManager maps session cookies to old user tasks, causing stale responses.
-      window.fetch(vm.url, { credentials: 'omit' }).then((resp) => {
-        const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
-      }).then((resp) => {
-        let data
-        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
-        if (data === null || data === undefined || data === '') {
+      fetchCC(vm.url).then((result) => {
+        if (result.type === 'empty') {
           vm.loading = false
           vm.error = true
-          vm.errorData = 'CruiseControl sent an empty response with ' + resp.status + ' status code.'
-        } else if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
+          vm.errorData = 'CruiseControl sent an empty response with ' + result.status + ' status code.'
+        } else if (result.type === 'async') {
           vm.loading = false
           vm.async = true
-          vm.asyncData = data
+          vm.asyncData = result.data
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
-          vm.asyncRetryTimer = setTimeout(() => vm.getState(), 5000)
-        } else if (!resp.ok) {
+          vm.asyncRetryTimer = setTimeout(() => vm.getState(), ASYNC_RETRY_DELAY)
+        } else if (result.type === 'error') {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.loading = false
           vm.error = true
-          vm.errorData = data
+          vm.errorData = result.data
         } else {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.error = false
           vm.errorData = null
           vm.loading = false
-          vm.$set(vm, 'ExecutorState', Object.assign(JSON.parse(JSON.stringify(vm.$options.data.call(vm).ExecutorState)), data.ExecutorState))
+          vm.$set(vm, 'ExecutorState', Object.assign(JSON.parse(JSON.stringify(DEFAULT_EXECUTOR_STATE)), result.data.ExecutorState))
           vm.loaded = true
         }
       }).catch((e) => {
@@ -1030,7 +647,7 @@ export default {
           if (!this.loading) {
             this.getState()
           }
-        }, 30000)
+        }, AUTO_REFRESH_INTERVAL)
       }
     },
     stopProposalExecution () {

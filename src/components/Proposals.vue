@@ -10,13 +10,13 @@
     <div v-if='error'>
       <exception :exception='errorData'></exception>
     </div>
-    <div v-if='async'>
+    <div v-else-if='async'>
       <div class="alert alert-info text-center" v-if='showAsyncRefreshButton'>
         <button class="btn btn-sm btn-secondary" @click='getProposals()'>⟳ Refresh View Now (Task-Id: {{ taskId }} )</button>
       </div>
       <async-task :asyncData='asyncData'></async-task>
     </div>
-    <div v-if='loading'>
+    <div v-else-if='!loaded && loading'>
       <div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div> Loading ...</div>
     </div>
     <div v-else-if='loaded'>
@@ -121,6 +121,8 @@
 <script>
 import DiffCell from '@/components/DiffCell'
 import Goal from '@/components/Goal'
+import { ASYNC_RETRY_DELAY, ARGS_RETRY_MAX, ARGS_RETRY_DELAY } from '@/constants'
+import fetchCC from '@/fetchCC'
 
 export default {
   name: 'Proposals',
@@ -135,7 +137,6 @@ export default {
   data () {
     return {
       loading: false,
-      loadingSecondsNow: 0,
       loaded: false,
       error: false,
       errorData: null,
@@ -183,13 +184,6 @@ export default {
     },
     hideHelperURL () {
       return this.$store.state.hideHelperURL
-    },
-    loadingSeconds () {
-      if (this.loading) {
-        this.loadingSecondsNow++
-      } else {
-        this.loadingSecondsNow = 0
-      }
     },
     violatedGoals () {
       const newgoals = []
@@ -322,8 +316,8 @@ export default {
       retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
       if (!newurl) {
-        if (retries < 20) {
-          setTimeout(() => this.argsChanged(retries + 1), 500)
+        if (retries < ARGS_RETRY_MAX) {
+          setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
         }
         return
       }
@@ -340,66 +334,45 @@ export default {
       vm.error = false
       vm.async = false
       vm.loading = true
-      const fetchOptions = {
-        credentials: 'omit'
-      }
-      // check if there is a running user-task-id for this end point in the $store
+      const fetchOptions = {}
       const task = this.taskId
       if (task) {
-        fetchOptions.headers = {
-          'User-Task-ID': task
-        }
+        fetchOptions.headers = { 'User-Task-ID': task }
       }
-      window.fetch(vm.url, fetchOptions).then((resp) => {
-        const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => {
-          return { text, contentType, ok: resp.ok, status: resp.status, headers: resp.headers }
-        })
-      }).then((resp) => {
-        // set this so that we know if the server sends user-task-id in the response
-        vm.detectedUserTaskId = resp.headers.has('user-task-id')
-        let data = null
-        try {
-          data = JSON.parse(resp.text)
-        } catch (e) {
-          data = resp.text
-        }
-        if (data === null || data === undefined || data === '') {
+      fetchCC(vm.url, fetchOptions).then((result) => {
+        vm.detectedUserTaskId = result.headers.has('user-task-id')
+        if (result.type === 'empty') {
           vm.loading = false
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
-        } else if (resp.contentType.match(/text\/plain/) || data.progress) {
+        } else if (result.type === 'async') {
           vm.loading = false
-          // save the task-id if its present in the response header
-          const task = resp.headers.has('user-task-id') ? resp.headers.get('user-task-id') : null
-          vm.$store.commit('setTaskId', { url: vm.url, taskid: task }) // save this task for follow-up calls (null deletes in vuex)
-          // set the internal bits
+          const taskId = result.headers.has('user-task-id') ? result.headers.get('user-task-id') : null
+          vm.$store.commit('setTaskId', { url: vm.url, taskid: taskId })
           vm.async = true
-          vm.asyncData = data
+          vm.asyncData = result.data
           vm.showAsyncRefreshButton = true
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
-          vm.asyncRetryTimer = setTimeout(() => vm.getProposals(), 5000)
-        } else if (!resp.ok) {
+          vm.asyncRetryTimer = setTimeout(() => vm.getProposals(), ASYNC_RETRY_DELAY)
+        } else if (result.type === 'error') {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.loading = false
           vm.error = true
-          vm.errorData = data
+          vm.errorData = result.data
         } else {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
           vm.loading = false
           vm.error = false
-          // top level metadata in the response (may be nested under 'summary' or at top level)
+          const data = result.data
           const summary = data.summary || data
           vm.numReplicaMovements = summary.numReplicaMovements
           vm.recentWindows = summary.recentWindows
           vm.dataToMoveMB = summary.dataToMoveMB || summary.intraBrokerDataToMoveMB
           vm.monitoredPartitionsPercentage = summary.monitoredPartitionsPercentage
           vm.numLeaderMovements = summary.numLeaderMovements
-          // nested maps
           vm.$set(vm, 'loadBefore', data.loadBeforeOptimization)
           vm.$set(vm, 'loadAfter', data.loadAfterOptimization)
-          // key has been renamed upstream
           if (Object.prototype.hasOwnProperty.call(data, 'goalSummary')) {
             vm.$set(vm, 'goals', data.goalSummary)
           } else {

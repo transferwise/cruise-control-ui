@@ -103,6 +103,7 @@
 
 <script>
 import LineChart from '@/components/LineChart.vue'
+import { ARGS_RETRY_MAX, ARGS_RETRY_DELAY } from '@/constants'
 
 class Topic {
   constructor () {
@@ -216,8 +217,8 @@ export default {
       retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
       if (!newurl) {
-        if (retries < 20) {
-          setTimeout(() => this.argsChanged(retries + 1), 500)
+        if (retries < ARGS_RETRY_MAX) {
+          setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
         }
         return
       }

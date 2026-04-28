@@ -67,6 +67,8 @@
 <script>
 import KafkaBrokerState from '@/components/KafkaBrokerState'
 import KafkaPartitionState from '@/components/KafkaPartitionState'
+import { ASYNC_RETRY_DELAY } from '@/constants'
+import fetchCC from '@/fetchCC'
 
 export default {
   name: 'KafkaClusterState',
@@ -161,7 +163,6 @@ export default {
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
       this.$store.commit('seturl', newurl)
       this.loaded = false
-      this.newurl = newurl
       if (this.asyncRetryTimer) {
         clearTimeout(this.asyncRetryTimer)
         this.asyncRetryTimer = null
@@ -171,25 +172,20 @@ export default {
     getKafkaState () {
       const vm = this
       vm.loading = true
-      window.fetch(vm.url, { credentials: 'omit' }).then((resp) => {
-        const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
-      }).then((resp) => {
-        let data
-        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
-        if (data === null || data === undefined || data === '') {
+      fetchCC(vm.url).then((result) => {
+        if (result.type === 'empty') {
           vm.error = true
-          vm.errorData = 'CruiseControl sent an empty response with ' + resp.status + ' status code.'
-        } else if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
+          vm.errorData = 'CruiseControl sent an empty response with ' + result.status + ' status code.'
+        } else if (result.type === 'async') {
           vm.async = true
-          vm.asyncData = data
+          vm.asyncData = result.data
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
-          vm.asyncRetryTimer = setTimeout(() => vm.getKafkaState(), 5000)
-        } else if (!resp.ok) {
+          vm.asyncRetryTimer = setTimeout(() => vm.getKafkaState(), ASYNC_RETRY_DELAY)
+        } else if (result.type === 'error') {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.loading = false
           vm.error = true
-          vm.errorData = data
+          vm.errorData = result.data
         } else {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
@@ -197,12 +193,12 @@ export default {
           vm.errorData = null
           vm.loading = false
           vm.loaded = true
+          const data = result.data
           vm.KafkaPartitionState.offline = data.KafkaPartitionState.offline
           vm.KafkaPartitionState.urp = data.KafkaPartitionState.urp
           vm.KafkaBrokerState.ReplicaCountByBrokerId = data.KafkaBrokerState.ReplicaCountByBrokerId
           vm.KafkaBrokerState.OutOfSyncCountByBrokerId = data.KafkaBrokerState.OutOfSyncCountByBrokerId
           vm.KafkaBrokerState.LeaderCountByBrokerId = data.KafkaBrokerState.LeaderCountByBrokerId
-          // only >= kafka 2.0 release
           try {
             vm.KafkaPartitionState['with-offline-replicas'] = data.KafkaPartitionState['with-offline-replicas']
             vm.KafkaPartitionState['under-min-isr'] = data.KafkaPartitionState['under-min-isr']

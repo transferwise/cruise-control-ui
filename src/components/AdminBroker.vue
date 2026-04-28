@@ -14,7 +14,7 @@
     </div>
     <div v-else-if='async'>
       <div class="alert alert-info text-center" v-if='showAsyncRefreshButton'>
-        <button class="btn btn-sm btn-secondary" @click='getProposals()'>⟳ Refresh View Now (Task-Id: {{ taskId }} )</button>
+        <button class="btn btn-sm btn-secondary" @click='getKafkaState()'>⟳ Refresh View Now</button>
       </div>
       <async-task :asyncData='asyncData'></async-task>
     </div>
@@ -617,6 +617,8 @@
 // import xssFilters from 'xss-filters'
 import goals from '@/goals'
 import BrokerState from '@/components/BrokerState'
+import { ASYNC_RETRY_DELAY, ARGS_RETRY_MAX, ARGS_RETRY_DELAY } from '@/constants'
+import fetchCC from '@/fetchCC'
 const sortBy = require('lodash.sortby')
 
 export default {
@@ -708,9 +710,6 @@ export default {
     }
   },
   computed: {
-    taskId () {
-      return this.$store.getters.getTaskId(this.url)
-    },
     disableGoals () {
       return this.kafka_assigner || this.use_ready_default_goals
     },
@@ -970,14 +969,13 @@ export default {
       retries = retries || 0
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
       if (!newurl) {
-        if (retries < 20) {
-          setTimeout(() => this.argsChanged(retries + 1), 500)
+        if (retries < ARGS_RETRY_MAX) {
+          setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
         }
         return
       }
       this.$store.commit('seturl', newurl)
       this.loaded = false
-      this.newurl = newurl
       this.clearPostResponse()
       if (this.asyncRetryTimer) {
         clearTimeout(this.asyncRetryTimer)
@@ -1040,32 +1038,24 @@ export default {
       vm.async = false
       vm.loading = true
       const url = vm.$helpers.getURL('kafka_cluster_state')
-      // console.log(url)
-      window.fetch(url, { credentials: 'omit' }).then((resp) => {
-        const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({ text, ok: resp.ok, status: resp.status, contentType, headers: resp.headers }))
-      }).then((resp) => {
-        // set this so that we know if the server sends user-task-id in the response
-        vm.detectedUserTaskId = resp.headers.has('user-task-id')
-        let data
-        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
-        if (!resp.ok) {
+      fetchCC(url).then((result) => {
+        vm.detectedUserTaskId = result.headers.has('user-task-id')
+        if (result.type === 'error') {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.loading = false
           vm.error = true
-          vm.errorData = data || resp.status
-          return
-        }
-        // do verify the state
-        if (data === null || data === undefined || data === '') {
+          vm.errorData = result.data || result.status
+        } else if (result.type === 'empty') {
+          vm.loading = false
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
-        } else if (resp.contentType.match(/text\/plain/) || data.progress) {
+        } else if (result.type === 'async') {
+          vm.loading = false
           vm.async = true
-          vm.asyncData = data
+          vm.asyncData = result.data
           vm.showAsyncRefreshButton = true
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
-          vm.asyncRetryTimer = setTimeout(() => vm.getKafkaState(), 5000)
+          vm.asyncRetryTimer = setTimeout(() => vm.getKafkaState(), ASYNC_RETRY_DELAY)
         } else {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
@@ -1073,10 +1063,10 @@ export default {
           vm.errorData = null
           vm.loading = false
           vm.loaded = true
+          const data = result.data
           vm.KafkaBrokerState.ReplicaCountByBrokerId = data.KafkaBrokerState.ReplicaCountByBrokerId
           vm.KafkaBrokerState.OutOfSyncCountByBrokerId = data.KafkaBrokerState.OutOfSyncCountByBrokerId
           vm.KafkaBrokerState.LeaderCountByBrokerId = data.KafkaBrokerState.LeaderCountByBrokerId
-          // only >= kafka 2.0 release
           try {
             vm.KafkaBrokerState.OfflineReplicaCountByBrokerId = data.KafkaBrokerState.OfflineReplicaCountByBrokerId
             vm.KafkaBrokerState.OfflineLogDirsByBrokerId = data.KafkaBrokerState.OfflineLogDirsByBrokerId
