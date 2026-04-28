@@ -78,8 +78,8 @@ import BooleanEL from '@/components/BooleanEL'
 export default {
   name: 'Monitor',
   props: {
-    'group': String,
-    'cluster': String
+    group: String,
+    cluster: String
   },
   components: {
     BooleanEL
@@ -139,10 +139,10 @@ export default {
       return this.$store.state.hideHelperURL
     },
     url () {
-      return this.$helpers.getURL('state', {substates: 'MONITOR', verbose: true})
+      return this.$helpers.getURL('state', { substates: 'MONITOR', verbose: true })
     },
     bootstrapUrl () {
-      return this.$helpers.getURL('bootstrap', {clearmetrics: true, start: 0})
+      return this.$helpers.getURL('bootstrap', { clearmetrics: true, start: 0 })
     },
     get_action_url () {
       if (this.MonitorState.state === 'PAUSED') {
@@ -196,9 +196,9 @@ export default {
     getState () {
       const vm = this
       vm.loading = true
-      window.fetch(vm.url, {credentials: 'omit'}).then((resp) => {
+      window.fetch(vm.url, { credentials: 'omit' }).then((resp) => {
         const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+        return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
       }).then((resp) => {
         let data
         try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
@@ -233,7 +233,7 @@ export default {
     },
     bootstrapMetrics () {
       const vm = this
-      vm.$http.get(vm.bootstrapUrl, {withCredentials: true}).then((r) => {
+      vm.$http.get(vm.bootstrapUrl, { withCredentials: true }).then((r) => {
         alert('Bootstrap started, cruise control will now start to read historical metrics to get to ready state, please be patient')
       }, (e) => {
         alert(e.response.data.errorMessage)
@@ -254,9 +254,9 @@ export default {
       }
     },
     doAction () {
-      let vm = this
+      const vm = this
       console.log(vm.get_action_url)
-      this.$http.post(vm.get_action_url, {withCredentials: true}).then((r) => {
+      this.$http.post(vm.get_action_url, { withCredentials: true }).then((r) => {
         this.getState()
       }, (e) => {
         this.getState()

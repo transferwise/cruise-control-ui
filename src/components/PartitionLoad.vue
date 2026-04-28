@@ -153,10 +153,10 @@ export default {
       // Form Elements
       resource: 'DISK',
       allResources: [
-        {key: 'CPU', label: 'CPU'},
-        {key: 'NW_IN', label: 'Network In'},
-        {key: 'NW_OUT', label: 'Network Out'},
-        {key: 'DISK', label: 'Disk'}
+        { key: 'CPU', label: 'CPU' },
+        { key: 'NW_IN', label: 'Network In' },
+        { key: 'NW_OUT', label: 'Network Out' },
+        { key: 'DISK', label: 'Disk' }
       ],
       numRecords: 100,
       allowCapacityEstimation: true,
@@ -195,7 +195,7 @@ export default {
     apiMinorVersion () {
       // NnwOutRate has been changed to NwOutRate and Upstream
       // API does not expose this correctly.
-      if (this.records.length > 0 && this.records[0].hasOwnProperty('networkInbound')) {
+      if (this.records.length > 0 && Object.prototype.hasOwnProperty.call(this.records[0], 'networkInbound')) {
         return 2
       } else {
         return 1
@@ -205,7 +205,7 @@ export default {
       return this.$store.state.hideHelperURL
     },
     url () {
-      let params = {
+      const params = {
         resource: this.resource,
         entries: this.numRecords,
         allow_capacity_estimation: this.allowCapacityEstimation,
@@ -252,30 +252,30 @@ export default {
       this.getPartitionLoad()
     },
     getPartitionLoad () {
-      let vm = this
+      const vm = this
       vm.error = false
       vm.async = false
       vm.loaded = false
       vm.loading = true
-      let fetchOptions = {
+      const fetchOptions = {
         credentials: 'omit'
       }
       // check if there is a running user-task-id for this end point in the $store
       // let task = this.$store.getters.getTaskId('proposals')
-      let task = this.$store.getters.getTaskId(vm.url)
+      const task = this.$store.getters.getTaskId(vm.url)
       if (task) {
-        fetchOptions['headers'] = {
+        fetchOptions.headers = {
           'User-Task-ID': task
         }
       }
       window.fetch(vm.url, fetchOptions).then((resp) => {
-        let contentType = resp.headers.get('content-type') || ''
+        const contentType = resp.headers.get('content-type') || ''
         return resp.text().then((text) => {
           return {
             ok: resp.ok,
             status: resp.status,
-            contentType: contentType,
-            text: text,
+            contentType,
+            text,
             headers: resp.headers
           }
         })
@@ -300,8 +300,8 @@ export default {
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
         } else if (resp.contentType.match(/text\/plain/) || data.progress) {
-          let task = resp.headers.has('user-task-id') ? resp.headers.get('user-task-id') : null
-          vm.$store.commit('setTaskId', {url: vm.url, taskid: task}) // save this task for follow-up calls (null deletes in vuex)
+          const task = resp.headers.has('user-task-id') ? resp.headers.get('user-task-id') : null
+          vm.$store.commit('setTaskId', { url: vm.url, taskid: task }) // save this task for follow-up calls (null deletes in vuex)
           vm.async = true
           vm.asyncData = data
           vm.showAsyncRefreshButton = true

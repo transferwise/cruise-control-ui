@@ -125,8 +125,8 @@ import Goal from '@/components/Goal'
 export default {
   name: 'Proposals',
   props: {
-    'group': String,
-    'cluster': String
+    group: String,
+    cluster: String
   },
   components: {
     DiffCell,
@@ -192,7 +192,7 @@ export default {
       }
     },
     violatedGoals () {
-      let newgoals = []
+      const newgoals = []
       this.goals.forEach((g) => {
         if (g.goalViolated.match(/VIOLATED/i)) {
           newgoals.push(g)
@@ -203,17 +203,17 @@ export default {
     url () {
       // loadBeforeOptimization is removed and is available only when
       // we pass verbose=true flag
-      return this.$helpers.getURL('proposals', {verbose: true})
+      return this.$helpers.getURL('proposals', { verbose: true })
     },
     hostLoad () {
-      let hostMap = [
+      const hostMap = [
         {}, // before load
         {} // after load
       ]
-      let unified = {}
-      if (!this.loadBefore.brokers || !this.loadAfter.brokers) return {'heading': [], 'records': []}
+      const unified = {}
+      if (!this.loadBefore.brokers || !this.loadAfter.brokers) return { heading: [], records: [] }
       // re-key them based on the broker-id
-      let hostnames = []
+      const hostnames = []
       this.loadBefore.hosts.forEach((rec) => {
         hostnames.push(rec.Host)
         hostMap[0][rec.Host] = rec
@@ -221,7 +221,7 @@ export default {
       this.loadAfter.hosts.forEach((rec) => {
         hostMap[1][rec.Host] = rec
       })
-      let numKeys = [
+      const numKeys = [
         'FollowerNwInRate',
         'Leaders',
         'DiskMB',
@@ -231,14 +231,14 @@ export default {
         'Replicas',
         'LeaderNwInRate'
       ]
-      let strKeys = [
+      const strKeys = [
         'Host'
       ]
       let allKeys = strKeys
       allKeys.push(numKeys)
       allKeys = allKeys.reduce((acc, val) => acc.concat(val), [])
       hostnames.forEach((host) => {
-        let diff = {}
+        const diff = {}
         numKeys.forEach((key) => {
           diff[key] = {
             before: hostMap[0][host][key],
@@ -256,19 +256,19 @@ export default {
         unified[host] = diff
       })
       return {
-        'heading': allKeys,
-        'records': unified
+        heading: allKeys,
+        records: unified
       }
     },
     brokerLoad () {
-      let brokerMap = [
+      const brokerMap = [
         {}, // before load
         {} // after load
       ]
-      let unified = {}
-      if (!this.loadBefore.brokers || !this.loadAfter.brokers) return {'heading': [], 'records': []}
+      const unified = {}
+      if (!this.loadBefore.brokers || !this.loadAfter.brokers) return { heading: [], records: [] }
       // re-key them based on the broker-id
-      let brokerids = []
+      const brokerids = []
       this.loadBefore.brokers.forEach((rec) => {
         brokerids.push(rec.Broker)
         brokerMap[0][rec.Broker] = rec
@@ -276,7 +276,7 @@ export default {
       this.loadAfter.brokers.forEach((rec) => {
         brokerMap[1][rec.Broker] = rec
       })
-      let numKeys = [
+      const numKeys = [
         'FollowerNwInRate',
         'Leaders',
         'DiskMB',
@@ -286,7 +286,7 @@ export default {
         'Replicas',
         'LeaderNwInRate'
       ]
-      let strKeys = [
+      const strKeys = [
         'BrokerState',
         'Host'
       ]
@@ -294,7 +294,7 @@ export default {
       allKeys.push(numKeys)
       allKeys = allKeys.reduce((acc, val) => acc.concat(val), [])
       brokerids.forEach((broker) => {
-        let diff = {}
+        const diff = {}
         numKeys.forEach((key) => {
           diff[key] = {
             before: brokerMap[0][broker][key],
@@ -312,8 +312,8 @@ export default {
         unified[broker] = diff
       })
       return {
-        'heading': allKeys,
-        'records': unified
+        heading: allKeys,
+        records: unified
       }
     }
   },
@@ -336,24 +336,24 @@ export default {
       this.getProposals()
     },
     getProposals () {
-      let vm = this
+      const vm = this
       vm.error = false
       vm.async = false
       vm.loading = true
-      let fetchOptions = {
+      const fetchOptions = {
         credentials: 'omit'
       }
       // check if there is a running user-task-id for this end point in the $store
-      let task = this.taskId
+      const task = this.taskId
       if (task) {
-        fetchOptions['headers'] = {
+        fetchOptions.headers = {
           'User-Task-ID': task
         }
       }
       window.fetch(vm.url, fetchOptions).then((resp) => {
-        let contentType = resp.headers.get('content-type') || ''
+        const contentType = resp.headers.get('content-type') || ''
         return resp.text().then((text) => {
-          return { text: text, contentType: contentType, ok: resp.ok, status: resp.status, headers: resp.headers }
+          return { text, contentType, ok: resp.ok, status: resp.status, headers: resp.headers }
         })
       }).then((resp) => {
         vm.loading = false
@@ -370,8 +370,8 @@ export default {
           vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
         } else if (resp.contentType.match(/text\/plain/) || data.progress) {
           // save the task-id if its present in the response header
-          let task = resp.headers.has('user-task-id') ? resp.headers.get('user-task-id') : null
-          vm.$store.commit('setTaskId', {url: vm.url, taskid: task}) // save this task for follow-up calls (null deletes in vuex)
+          const task = resp.headers.has('user-task-id') ? resp.headers.get('user-task-id') : null
+          vm.$store.commit('setTaskId', { url: vm.url, taskid: task }) // save this task for follow-up calls (null deletes in vuex)
           // set the internal bits
           vm.async = true
           vm.asyncData = data
@@ -393,7 +393,7 @@ export default {
           vm.$set(vm, 'loadBefore', data.loadBeforeOptimization)
           vm.$set(vm, 'loadAfter', data.loadAfterOptimization)
           // key has been renamed upstream
-          if (data.hasOwnProperty('goalSummary')) {
+          if (Object.prototype.hasOwnProperty.call(data, 'goalSummary')) {
             vm.$set(vm, 'goals', data.goalSummary)
           } else {
             vm.$set(vm, 'goals', data.goals)

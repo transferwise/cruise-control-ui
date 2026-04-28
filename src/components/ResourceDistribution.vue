@@ -114,7 +114,7 @@ class Topic {
   }
 
   addLeader (item) {
-    let broker = item.leader
+    const broker = item.leader
     if (this.leaders[broker] === undefined) {
       this.leaders[broker] = 1
       return
@@ -123,10 +123,10 @@ class Topic {
   }
 
   addReplicas (item) {
-    let replicas = Object.values(item.followers)
+    const replicas = Object.values(item.followers)
     replicas.push(item.leader)
 
-    replicas.map(follower => {
+    replicas.forEach(follower => {
       if (this.replicas[follower] === undefined) {
         this.replicas[follower] = 1
         return
@@ -144,12 +144,12 @@ class Topic {
   }
 
   countDisk (item) {
-    let replicationFactor = item.followers.length + 1
+    const replicationFactor = item.followers.length + 1
     this.disk += item.disk * replicationFactor
   }
 
   getSize () {
-    let decimals = 2
+    const decimals = 2
     if (this.disk === 0) return '0 MiB'
     const k = 1024
     const sizes = ['MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']
@@ -243,8 +243,8 @@ export default {
       this.$http
         .get(this.$helpers.getURL('partitionload', {}))
         .then(response => {
-          let brokerList = new Set()
-          for (let record of response.data.records) {
+          const brokerList = new Set()
+          for (const record of response.data.records) {
             this.cacheKccDataItem(record)
             brokerList.add(record.leader, ...record.followers)
           }
@@ -264,7 +264,7 @@ export default {
         })
     },
     formatItemData (item) {
-      let resources = item[1][this.resource]
+      const resources = item[1][this.resource]
       return {
         datasets: [{
           data: [...Object.values(resources)],
@@ -274,11 +274,11 @@ export default {
       }
     },
     formatItemOptions (item) {
-      let title = `${item[0]} (RF ${item[1].replicationFactor}, size ${item[1].getSize()})`
+      const title = `${item[0]} (RF ${item[1].replicationFactor}, size ${item[1].getSize()})`
       return this.getOptions(title)
     },
     getOptions (title) {
-      let options = {
+      const options = {
         legend: {
           display: false
         },
@@ -307,7 +307,7 @@ export default {
 
   computed: {
     formatStackedData () {
-      let stackedKccData = {
+      const stackedKccData = {
         labels: this.brokerList,
         datasets: []
       }
@@ -317,16 +317,16 @@ export default {
       }
 
       let counter = 0
-      for (let topic of this.cachedKccData) {
-        let dataset = {
+      for (const topic of this.cachedKccData) {
+        const dataset = {
           label: topic[0],
           data: [],
           backgroundColor: this.$store.state.chartColors[counter]
         }
         counter++
         counter = counter % this.$store.state.chartColors.length
-        for (let broker of this.brokerList) {
-          let value = (topic[1][this.resource][broker] !== undefined) ? topic[1][this.resource][broker] : 0
+        for (const broker of this.brokerList) {
+          const value = (topic[1][this.resource][broker] !== undefined) ? topic[1][this.resource][broker] : 0
           dataset.data.push(value)
         }
         stackedKccData.datasets.push(dataset)
@@ -336,7 +336,7 @@ export default {
     },
 
     getStackedOptions () {
-      let options = this.getOptions(`stacked ${this.resource} view`)
+      const options = this.getOptions(`stacked ${this.resource} view`)
       options.scales.xAxes = [{ stacked: true }]
       options.scales.yAxes[0].stacked = true
       options.scales.yAxes[0].scaleLabel.labelString = this.resource === 'cpu' ? '% cpu' : `nb ${this.resource}`

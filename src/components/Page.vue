@@ -85,7 +85,7 @@ export default {
     }
   },
   components: {
-    'offline': Offline
+    offline: Offline
   }
 }
 </script>

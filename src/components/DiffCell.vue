@@ -64,7 +64,7 @@ export default {
     pctchange () {
       if (this.numeric) {
         if (this.cell.before > 0) {
-          let v = Number(((this.before - this.after) / (this.before)) * 100)
+          const v = Number(((this.before - this.after) / (this.before)) * 100)
           if (isNaN(v)) {
             return '0'
           } else {

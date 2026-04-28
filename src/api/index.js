@@ -5,19 +5,19 @@ import parse from 'url-parse'
 import Vue from 'vue'
 
 function getURL (type, params) {
-  var url = store.state.url
-  var parsed = parse(url)
+  const url = store.state.url
+  const parsed = parse(url)
   if (params === undefined || params == null) {
     params = {}
   }
-  if (!params.hasOwnProperty('json')) {
+  if (!Object.prototype.hasOwnProperty.call(params, 'json')) {
     // demote broker doesn't like to have json param
     // remove this check once https://github.com/linkedin/cruise-control/issues/249 is fixed
     if (!type.match(/demote_broker|stop_proposal_execution|pause_sampling|resume_sampling/)) {
       params.json = true
     }
   }
-  var sep = parsed.pathname && parsed.pathname.endsWith('/') ? '' : '/'
+  const sep = parsed.pathname && parsed.pathname.endsWith('/') ? '' : '/'
   if (type === 'replicaload') {
     parsed.set('pathname', parsed.pathname + sep + 'load')
   } else if (type === 'partitionload') {
@@ -26,7 +26,7 @@ function getURL (type, params) {
     parsed.set('pathname', parsed.pathname + sep + type)
   }
   // set the query parameters
-  parsed.set('query', buildUrl(null, {queryParams: params}))
+  parsed.set('query', buildUrl(null, { queryParams: params }))
   return parsed.toString()
 }
 
@@ -39,7 +39,7 @@ function datafix (v, _default) {
 }
 
 export default {
-  getURL: getURL,
-  datafix: datafix,
+  getURL,
+  datafix,
   eventBus: new Vue()
 }

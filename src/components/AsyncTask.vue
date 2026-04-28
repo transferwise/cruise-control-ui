@@ -67,7 +67,7 @@ export default {
   },
   computed: {
     isParsed () {
-      return this.asyncData.hasOwnProperty('progress')
+      return Object.prototype.hasOwnProperty.call(this.asyncData, 'progress')
     },
     /*
     steps () {
@@ -91,11 +91,11 @@ export default {
       if (!this.isParsed) {
         return []
       } else {
-        let steps = []
+        const steps = []
         let totalCompletion = 0
         let totalTime = 0.0
         this.asyncData.progress.forEach((op) => {
-          if (op.hasOwnProperty('operationProgress')) {
+          if (Object.prototype.hasOwnProperty.call(op, 'operationProgress')) {
             op.operationProgress.forEach((step) => {
               steps.push({
                 label: op.operation,

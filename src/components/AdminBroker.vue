@@ -150,7 +150,6 @@
         </div>
       </div>
 
-
       <!-- Rebalance Cluster Flags -->
       <div class="alert alert-info" v-if='actionName === "rebalance"'>
         <h5>Rebalance Cluster Flags</h5>
@@ -617,8 +616,8 @@
 // Disable this due to https://github.com/linkedin/cruise-control-ui/issues/40
 // import xssFilters from 'xss-filters'
 import goals from '@/goals'
-const sortBy = require('lodash.sortby')
 import BrokerState from '@/components/BrokerState'
+const sortBy = require('lodash.sortby')
 
 export default {
   name: 'AdminBroker',
@@ -746,9 +745,9 @@ export default {
       })
     },
     actionURL () {
-      let vm = this
+      const vm = this
       // dryrun should always be there in URL
-      let params = {
+      const params = {
         dryrun: vm.dryrun
       }
       if (vm.actionName === 'remove' || vm.actionName === 'add' || vm.actionName === 'demote') {
@@ -987,26 +986,26 @@ export default {
       this.getBrokerDetails()
     },
     actionBroker () {
-      let vm = this
+      const vm = this
       vm.posted = true
       this.clearPostResponse()
-      let params = {
+      const params = {
         withCredentials: true
       }
       // check if there is a running user-task-id for this end point in the $store
       // let task = this.$store.getters.getTaskId('proposals')
-      let task = this.$store.getters.getTaskId(vm.actionURL)
+      const task = this.$store.getters.getTaskId(vm.actionURL)
       if (task) {
-        params['headers'] = {
+        params.headers = {
           'User-Task-ID': task
         }
       }
       this.$http.post(vm.actionURL, params).then((r) => {
         // set this so that we know if the server sends user-task-id in the response
-        vm.detectedUserTaskId = r.headers.hasOwnProperty('user-task-id')
+        vm.detectedUserTaskId = Object.prototype.hasOwnProperty.call(r.headers, 'user-task-id')
         // store this task in local cache for future follow-up
-        let task = r.headers.hasOwnProperty('user-task-id') ? r.headers['user-task-id'] : null
-        vm.$store.commit('setTaskId', {url: vm.actionURL, taskid: task}) // save this task for follow-up calls (null deletes in vuex)
+        const task = Object.prototype.hasOwnProperty.call(r.headers, 'user-task-id') ? r.headers['user-task-id'] : null
+        vm.$store.commit('setTaskId', { url: vm.actionURL, taskid: task }) // save this task for follow-up calls (null deletes in vuex)
         vm.posted = true
         vm.postError = false
         vm.postResponse = r.data
@@ -1026,15 +1025,15 @@ export default {
     },
     getBrokerDetails () {
       const vm = this
-      let url = vm.$helpers.getURL('load', {allow_capacity_estimation: true})
-      window.fetch(url, {credentials: 'omit'}).then((resp) => {
-        return resp.text().then((text) => ({text, ok: resp.ok}))
+      const url = vm.$helpers.getURL('load', { allow_capacity_estimation: true })
+      window.fetch(url, { credentials: 'omit' }).then((resp) => {
+        return resp.text().then((text) => ({ text, ok: resp.ok }))
       }).then((resp) => {
         if (!resp.ok) return
         let data
         try { data = JSON.parse(resp.text) } catch (e) { return }
         if (data && data.brokers) {
-          let details = {}
+          const details = {}
           data.brokers.forEach(function (b) {
             details[b.Broker] = b
           })
@@ -1049,11 +1048,11 @@ export default {
       vm.error = false
       vm.async = false
       vm.loading = true
-      let url = vm.$helpers.getURL('kafka_cluster_state')
+      const url = vm.$helpers.getURL('kafka_cluster_state')
       // console.log(url)
-      window.fetch(url, {credentials: 'omit'}).then((resp) => {
-        let contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({text, ok: resp.ok, status: resp.status, contentType, headers: resp.headers}))
+      window.fetch(url, { credentials: 'omit' }).then((resp) => {
+        const contentType = resp.headers.get('content-type') || ''
+        return resp.text().then((text) => ({ text, ok: resp.ok, status: resp.status, contentType, headers: resp.headers }))
       }).then((resp) => {
         // set this so that we know if the server sends user-task-id in the response
         vm.detectedUserTaskId = resp.headers.has('user-task-id')

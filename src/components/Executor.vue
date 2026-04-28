@@ -853,8 +853,8 @@ import BooleanEL from '@/components/BooleanEL'
 export default {
   name: 'Executor',
   props: {
-    'group': String,
-    'cluster': String
+    group: String,
+    cluster: String
   },
   components: {
     BooleanEL
@@ -965,7 +965,7 @@ export default {
       return this.$store.state.hideHelperURL
     },
     url () {
-      return this.$helpers.getURL('state', {substates: 'EXECUTOR', verbose: true})
+      return this.$helpers.getURL('state', { substates: 'EXECUTOR', verbose: true })
     },
     stopProposalExecutionURL () {
       return this.$helpers.getURL('stop_proposal_execution')
@@ -1094,9 +1094,9 @@ export default {
       vm.loading = true
       // Use fetch with credentials:'omit' to prevent session cookie from being sent.
       // CC's UserTaskManager maps session cookies to old user tasks, causing stale responses.
-      window.fetch(vm.url, {credentials: 'omit'}).then((resp) => {
+      window.fetch(vm.url, { credentials: 'omit' }).then((resp) => {
         const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+        return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
       }).then((resp) => {
         let data
         try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
@@ -1146,9 +1146,9 @@ export default {
       }
     },
     stopProposalExecution () {
-      let vm = this
+      const vm = this
       // cancel the on-going proposal execution
-      vm.$http.post(this.stopProposalExecutionURL, {withCredentials: true}).then((r) => {
+      vm.$http.post(this.stopProposalExecutionURL, { withCredentials: true }).then((r) => {
         vm.errStopProsalExecution = false
         vm.okDataStopProposalExecution = r.data
       }, (e) => {

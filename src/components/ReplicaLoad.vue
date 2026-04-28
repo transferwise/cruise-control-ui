@@ -113,7 +113,7 @@ export default {
       return this.$store.state.hideHelperURL
     },
     url: function () {
-      return this.$helpers.getURL('replicaload', {granularity: 'replica'})
+      return this.$helpers.getURL('replicaload', { granularity: 'replica' })
     }
   },
   methods: {
@@ -140,11 +140,11 @@ export default {
       this.getReplicaLoad()
     },
     getReplicaLoad () {
-      let vm = this
+      const vm = this
       vm.loading = true
-      window.fetch(vm.url, {credentials: 'omit'}).then((resp) => {
+      window.fetch(vm.url, { credentials: 'omit' }).then((resp) => {
         const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+        return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
       }).then((resp) => {
         let data
         try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }

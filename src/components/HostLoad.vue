@@ -86,7 +86,7 @@ export default {
     apiMinorVersion () {
       // NnwOutRate has been changed to NwOutRate and Upstream
       // API does not expose this correctly.
-      if (this.hosts.length > 0 && this.hosts[0].hasOwnProperty('NwOutRate')) {
+      if (this.hosts.length > 0 && Object.prototype.hasOwnProperty.call(this.hosts[0], 'NwOutRate')) {
         return 2
       } else {
         return 1

@@ -64,7 +64,7 @@ export default {
   computed: {
     // Array of page numbers to show based on active services (including filtered) data
     pages () {
-      let list = []
+      const list = []
       for (let i = 0; i < this.partitions.length / this.perpage; i++) {
         list.push(i + 1)
       }
@@ -75,7 +75,7 @@ export default {
       this.start = (this.pageNumber - 1) * this.perpage
       this.end = Math.min(
         this.pageNumber * this.perpage,
-        this.partitions.length,
+        this.partitions.length
       )
       return this.partitions.slice(this.start, this.end)
     }

@@ -17,8 +17,8 @@
 export default {
   name: 'AdminSampling',
   props: {
-    'group': String,
-    'cluster': String
+    group: String,
+    cluster: String
   },
   data () {
     return {
@@ -49,7 +49,7 @@ export default {
   },
   computed: {
     monitor_url () {
-      return this.$helpers.getURL('state', {substates: 'monitor'})
+      return this.$helpers.getURL('state', { substates: 'monitor' })
     },
     url () {
       if (this.state === 'PAUSED') {
@@ -87,9 +87,9 @@ export default {
     fetchMonitorState () {
       const vm = this
       vm.loading = true
-      window.fetch(vm.monitor_url, {credentials: 'omit'}).then((resp) => {
+      window.fetch(vm.monitor_url, { credentials: 'omit' }).then((resp) => {
         const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+        return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
       }).then((resp) => {
         let data
         try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
@@ -123,8 +123,8 @@ export default {
       })
     },
     changeState () {
-      let vm = this
-      this.$http.post(vm.url, {withCredentials: true}).then((r) => {
+      const vm = this
+      this.$http.post(vm.url, { withCredentials: true }).then((r) => {
         vm.success = true
         window.setTimeout(function () {
           vm.success = null

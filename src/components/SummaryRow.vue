@@ -67,7 +67,7 @@ export default {
   },
   methods: {
     poll () {
-      let vm = this
+      const vm = this
       if (!vm.destroyed) {
         // after vm.timeout seconds fetch the data
         vm.timer = window.setTimeout(function () {
@@ -82,9 +82,9 @@ export default {
       vm.loading = true
       let url = this.url + (this.url.endsWith('/') ? 'kafka_cluster_state' : '/kafka_cluster_state')
       url += (url.indexOf('?') === -1 ? '?' : '&') + 'json=true'
-      window.fetch(url, {credentials: 'omit'}).then((resp) => {
+      window.fetch(url, { credentials: 'omit' }).then((resp) => {
         const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+        return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
       }).then((resp) => {
         let data
         try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }

@@ -91,7 +91,7 @@ export default {
       // KCC Supports additional parameters as well.
       // time=[TIMESTAMP]
       // allow_capacity_estimation=[true/false]
-      let params = {
+      const params = {
         allow_capacity_estimation: this.allow_capacity_estimation
       }
       return this.$helpers.getURL('load', params)
@@ -120,25 +120,25 @@ export default {
       this.getLoad()
     },
     getLoad () {
-      let vm = this
+      const vm = this
       vm.error = false
       vm.async = false
       vm.loading = true
-      let fetchOptions = {
+      const fetchOptions = {
         credentials: 'omit'
       }
       // check if there is a running user-task-id for this end point in the $store
       // let task = this.$store.getters.getTaskId('proposals')
-      let task = this.$store.getters.getTaskId(vm.url)
+      const task = this.$store.getters.getTaskId(vm.url)
       if (task) {
         fetchOptions.headers = {
           'User-Task-ID': task
         }
       }
       window.fetch(vm.url, fetchOptions).then((resp) => {
-        let contentType = resp.headers.get('content-type') || ''
-        let detectedUserTaskId = resp.headers.has('user-task-id')
-        let userTaskId = resp.headers.get('user-task-id')
+        const contentType = resp.headers.get('content-type') || ''
+        const detectedUserTaskId = resp.headers.has('user-task-id')
+        const userTaskId = resp.headers.get('user-task-id')
         return resp.text().then((text) => {
           return { ok: resp.ok, status: resp.status, contentType, detectedUserTaskId, userTaskId, text }
         })
@@ -159,8 +159,8 @@ export default {
           vm.errorData = 'CruiseControl sent an empty response with 200-OK status code. Please file a bug here https://github.com/linkedin/cruise-control/issues'
         } else if (resp.contentType.match(/text\/plain/) || data.progress) {
           // capture the user-task-id only if the response is Async one
-          let task = resp.detectedUserTaskId ? resp.userTaskId : null
-          vm.$store.commit('setTaskId', {url: vm.url, taskid: task}) // save this task for follow-up calls (null deletes in vuex)
+          const task = resp.detectedUserTaskId ? resp.userTaskId : null
+          vm.$store.commit('setTaskId', { url: vm.url, taskid: task }) // save this task for follow-up calls (null deletes in vuex)
           vm.async = true
           vm.asyncData = data
           vm.showAsyncRefreshButton = true

@@ -106,7 +106,7 @@ export default {
     apiMinorVersion () {
       // NnwOutRate has been changed to NwOutRate and Upstream
       // API does not expose this correctly.
-      if (this.brokers.length > 0 && this.brokers[0].hasOwnProperty('NwOutRate')) {
+      if (this.brokers.length > 0 && Object.prototype.hasOwnProperty.call(this.brokers[0], 'NwOutRate')) {
         return 2
       } else {
         return 1

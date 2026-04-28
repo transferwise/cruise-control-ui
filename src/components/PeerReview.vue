@@ -42,7 +42,7 @@
             <td><span :class='statusLabel(r.Status)'>{{ r.Status }}</span></td>
             <td>{{ r.Reason }}</td>
             <td>
-              <!-- {{ reconstructURL(r.EndpointWithParams, r.Id) }} --> 
+              <!-- {{ reconstructURL(r.EndpointWithParams, r.Id) }} -->
               {{ r.EndpointWithParams }}</td>
             <td>
               <template v-if='r.Status.match(/PENDING_REVIEW/)'>
@@ -131,12 +131,12 @@ export default {
       this.getReviews()
     },
     getReviews () {
-      let vm = this
+      const vm = this
       vm.loading = true
       vm.selectedIds = []
-      window.fetch(vm.url, {credentials: 'omit'}).then((resp) => {
+      window.fetch(vm.url, { credentials: 'omit' }).then((resp) => {
         const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+        return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
       }).then((resp) => {
         let data
         try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
@@ -170,18 +170,18 @@ export default {
       })
     },
     doAction () {
-      let vm = this
-      vm.$http.post(vm.action_url, {withCredentials: true}).then((r) => {
+      const vm = this
+      vm.$http.post(vm.action_url, { withCredentials: true }).then((r) => {
         vm.getReviews()
       }, (e) => {
         console.log('Failed to submit.')
       })
     },
     submitApprovedRequest (r) {
-      let action = r.EndpointWithParams
-      let absUrl = this.reconstructURL(action, r.Id)
-      let vm = this
-      vm.$http.post(absUrl, {withCredentials: true}).then((r) => {
+      const action = r.EndpointWithParams
+      const absUrl = this.reconstructURL(action, r.Id)
+      const vm = this
+      vm.$http.post(absUrl, { withCredentials: true }).then((r) => {
         vm.posted = true
         vm.postResponse = r.data || 'Cruise Control Did not send a valid response. Check the server logs.'
         vm.getReviews()
@@ -203,9 +203,9 @@ export default {
       }
     },
     reconstructURL (u, id) {
-      var url = this.$store.state.url
-      let parsed = parse(url + u)
-      let params = {review_id: id}
+      const url = this.$store.state.url
+      const parsed = parse(url + u)
+      const params = { review_id: id }
       parsed.set('query', params)
       return parsed.toString()
     },
@@ -221,7 +221,7 @@ export default {
       //    &approve=[id1,id2,...]
       //    &discard=[id1,id2,...]
       //    &reason=[reason-for-review]
-      let params = {
+      const params = {
         json: true,
         reason: this.actionReason
       }
@@ -229,7 +229,7 @@ export default {
       return this.$helpers.getURL('review', params)
     },
     url () {
-      let params = {'json': 'true'}
+      const params = { json: 'true' }
       // Previously this end point is /review with POST method, in later versions its changed to /review_board with GET method
       // See https://github.com/linkedin/cruise-control/blob/3a97169c7a49859cf60675ef37a23e35ed35f30e/docs/wiki/User%20Guide/2-step-verification-for-POST-requests.md
       return this.$helpers.getURL('review_board', params)

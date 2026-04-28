@@ -66,8 +66,8 @@ import BooleanEL from '@/components/BooleanEL'
 export default {
   name: 'Analyzer',
   props: {
-    'group': String,
-    'cluster': String
+    group: String,
+    cluster: String
   },
   components: {
     'boolean-el': BooleanEL
@@ -119,7 +119,7 @@ export default {
       return this.$store.state.hideHelperURL
     },
     url () {
-      return this.$helpers.getURL('state', {substates: 'ANALYZER', verbose: true})
+      return this.$helpers.getURL('state', { substates: 'ANALYZER', verbose: true })
     }
   },
   methods: {
@@ -163,9 +163,9 @@ export default {
       const vm = this
       vm.loading = true
       vm.loaded = false
-      window.fetch(vm.url, {credentials: 'omit'}).then((resp) => {
+      window.fetch(vm.url, { credentials: 'omit' }).then((resp) => {
         const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({text, contentType, ok: resp.ok, status: resp.status}))
+        return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
       }).then((resp) => {
         let data
         try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
