@@ -173,15 +173,15 @@
           <div class="row">
             <div class="col-md-4">
               <h6>Choose Goals</h6>
-              <div class="form-check" v-for='g in allGoals.goals' :key='g.goal' v-if='!g.skip'>
-                <template v-if='g.group == 1'>
+              <template v-for='g in allGoals.goals' :key='g.goal'>
+              <div class="form-check" v-if='!g.skip && g.group == 1'>
                   <input class="form-check-input" type="checkbox" :value="g.goal" v-model='goals1' :disabled='disable_goals1'>
                   <label class="form-check-label" :title='g.description'>
                     <b v-if='g.hardGoal'>{{ g.goal.replace(/Goal/, '') | splitCamelCase }}</b>
                     <template v-else>{{ g.goal.replace(/Goal/, '') | splitCamelCase }}</template>
                   </label>
-                </template>
               </div>
+              </template>
             </div>
             <div class="col-md-4">
               <div class="form-group">
@@ -331,15 +331,15 @@
           <div class="row">
             <div class="col-md-4">
               <h6>Choose Goals</h6>
-              <div class="form-check" v-for='g in allGoals.goals' :key='g.goal' v-if='!g.skip'>
-                <template v-if='g.group == 1'>
+              <template v-for='g in allGoals.goals' :key='g.goal'>
+              <div class="form-check" v-if='!g.skip && g.group == 1'>
                   <input class="form-check-input" type="checkbox" :value="g.goal" v-model='goals1' :disabled='disable_goals1'>
                   <label class="form-check-label" :title='g.description'>
                     <b v-if='g.hardGoal'>{{ g.goal.replace(/Goal/, '') | splitCamelCase }}</b>
                     <template v-else>{{ g.goal.replace(/Goal/, '') | splitCamelCase }}</template>
                   </label>
-                </template>
               </div>
+              </template>
             </div>
             <div class="col-md-4">
               <div class="form-group">
@@ -459,15 +459,15 @@
           <div class="row">
             <div class="col-md-4">
               <h6>Choose Goals</h6>
-              <div class="form-check" v-for='g in allGoals.goals' :key='g.goal' v-if='!g.skip'>
-                <template v-if='g.group == 1'>
+              <template v-for='g in allGoals.goals' :key='g.goal'>
+              <div class="form-check" v-if='!g.skip && g.group == 1'>
                   <input class="form-check-input" type="checkbox" :value="g.goal" v-model='goals1' :disabled='disable_goals1'>
                   <label class="form-check-label" :title='g.description'>
                     <b v-if='g.hardGoal'>{{ g.goal.replace(/Goal/, '') | splitCamelCase }}</b>
                     <template v-else>{{ g.goal.replace(/Goal/, '') | splitCamelCase }}</template>
                   </label>
-                </template>
               </div>
+              </template>
             </div>
             <div class="col-md-4">
               <div class="form-group">
@@ -639,6 +639,7 @@ export default {
       errorData: null, // complete error data
       async: false,
       asyncData: null,
+      argsRetryTimer: null,
       asyncRetryTimer: null,
       selectedBrokers: [],
       // This is the response from the CC
@@ -705,6 +706,9 @@ export default {
     this.argsChanged()
   },
   beforeDestroy () {
+    if (this.argsRetryTimer) {
+      clearTimeout(this.argsRetryTimer)
+    }
     if (this.asyncRetryTimer) {
       clearTimeout(this.asyncRetryTimer)
     }
@@ -967,7 +971,7 @@ export default {
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
       if (!newurl) {
         if (retries < ARGS_RETRY_MAX) {
-          setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
+          this.argsRetryTimer = setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
         }
         return
       }
@@ -1035,6 +1039,7 @@ export default {
         if (result.type === 'error') {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.loading = false
+          vm.loaded = false
           vm.error = true
           vm.errorData = result.data || result.status
         } else if (result.type === 'empty') {

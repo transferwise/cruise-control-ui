@@ -84,6 +84,7 @@ export default {
       asyncData: null, // when the server treats the request as async and sends progress instead of actual response
       autoRefresh: true,
       autoRefreshInterval: null,
+      argsRetryTimer: null,
       asyncRetryTimer: null,
       AnalyzerState: {
         isProposalReady: false,
@@ -98,6 +99,9 @@ export default {
   beforeDestroy () {
     if (this.autoRefreshInterval) {
       clearInterval(this.autoRefreshInterval)
+    }
+    if (this.argsRetryTimer) {
+      clearTimeout(this.argsRetryTimer)
     }
     if (this.asyncRetryTimer) {
       clearTimeout(this.asyncRetryTimer)
@@ -125,7 +129,7 @@ export default {
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
       if (!newurl) {
         if (retries < ARGS_RETRY_MAX) {
-          setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
+          this.argsRetryTimer = setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
         }
         return
       }

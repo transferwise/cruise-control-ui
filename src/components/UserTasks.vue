@@ -77,6 +77,7 @@ export default {
       errorData: null,
       async: false,
       asyncData: null,
+      argsRetryTimer: null,
       asyncRetryTimer: null,
       tasks: [],
       sortColumn: 'StartMs',
@@ -88,6 +89,9 @@ export default {
     this.argsChanged()
   },
   beforeDestroy () {
+    if (this.argsRetryTimer) {
+      clearTimeout(this.argsRetryTimer)
+    }
     if (this.asyncRetryTimer) {
       clearTimeout(this.asyncRetryTimer)
     }
@@ -106,7 +110,7 @@ export default {
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
       if (!newurl) {
         if (retries < ARGS_RETRY_MAX) {
-          setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
+          this.argsRetryTimer = setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
         }
         return
       }

@@ -32,11 +32,11 @@ export default function fetchCC (url, options) {
       if (data === null || data === undefined || data === '') {
         return { type: 'empty', data, status: resp.status, headers: resp.headers }
       }
-      if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
-        return { type: 'async', data, status: resp.status, headers: resp.headers }
-      }
       if (!resp.ok) {
         return { type: 'error', data, status: resp.status, headers: resp.headers }
+      }
+      if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
+        return { type: 'async', data, status: resp.status, headers: resp.headers }
       }
       return { type: 'success', data, status: resp.status, headers: resp.headers }
     })

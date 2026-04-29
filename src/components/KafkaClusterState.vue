@@ -67,7 +67,7 @@
 <script>
 import KafkaBrokerState from '@/components/KafkaBrokerState'
 import KafkaPartitionState from '@/components/KafkaPartitionState'
-import { ASYNC_RETRY_DELAY } from '@/constants'
+import { ASYNC_RETRY_DELAY, ARGS_RETRY_MAX, ARGS_RETRY_DELAY } from '@/constants'
 import fetchCC from '@/fetchCC'
 
 export default {
@@ -88,6 +88,7 @@ export default {
       errorData: null,
       async: false,
       asyncData: null,
+      argsRetryTimer: null,
       asyncRetryTimer: null,
       stats: {
         brokers: 0,
@@ -115,6 +116,9 @@ export default {
     this.argsChanged()
   },
   beforeDestroy () {
+    if (this.argsRetryTimer) {
+      clearTimeout(this.argsRetryTimer)
+    }
     if (this.asyncRetryTimer) {
       clearTimeout(this.asyncRetryTimer)
     }
@@ -159,11 +163,10 @@ export default {
   methods: {
     argsChanged (retries) {
       retries = retries || 0
-      if (retries > 5) return
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
       if (!newurl) {
-        if (retries < 5) {
-          setTimeout(() => this.argsChanged(retries + 1), 500)
+        if (retries < ARGS_RETRY_MAX) {
+          this.argsRetryTimer = setTimeout(() => this.argsChanged(retries + 1), ARGS_RETRY_DELAY)
         }
         return
       }

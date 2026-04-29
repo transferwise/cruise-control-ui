@@ -117,9 +117,9 @@ export default {
     }
   },
   beforeDestroy () {
-    try {
+    if (this.csvTimer) {
       window.clearInterval(this.csvTimer)
-    } catch (e) {}
+    }
   }
 }
 </script>
