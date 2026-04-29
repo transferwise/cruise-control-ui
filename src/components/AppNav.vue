@@ -51,7 +51,7 @@ export default {
   methods: {
     configFetch () {
       const vm = this
-      const notselected = true
+      let notselected = true
       const url = vm.$store.state.configurl + '?_t=' + (new Date() / 1)
       // download the cluster information csv file
       vm.$http.get(url, { withCredentials: true }).then((r) => {
@@ -79,6 +79,7 @@ export default {
               vm.$set(vm.active, 'group', group)
               vm.$set(vm.active, 'cluster', label)
               vm.$set(vm.active, 'url', url)
+              notselected = false
             }
           }
         }
@@ -111,6 +112,9 @@ export default {
   },
   created () {
     this.configFetch()
+    if (this.$store.state.enableConfigFileReload) {
+      this.reloadForever()
+    }
   },
   beforeDestroy () {
     try {

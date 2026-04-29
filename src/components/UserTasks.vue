@@ -59,7 +59,6 @@
 </template>
 
 <script>
-import BooleanEL from '@/components/BooleanEL'
 import { ASYNC_RETRY_DELAY, ARGS_RETRY_MAX, ARGS_RETRY_DELAY } from '@/constants'
 import fetchCC from '@/fetchCC'
 const sortBy = require('lodash.sortby')
@@ -69,9 +68,6 @@ export default {
   props: {
     group: String,
     cluster: String
-  },
-  components: {
-    BooleanEL
   },
   data () {
     return {
@@ -130,26 +126,29 @@ export default {
       vm.loading = true
       fetchCC(vm.url).then((result) => {
         if (result.type === 'empty') {
+          vm.loading = false
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with ' + result.status + ' status code.'
         } else if (result.type === 'async') {
+          vm.loading = false
           vm.async = true
           vm.asyncData = result.data
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
           vm.asyncRetryTimer = setTimeout(() => vm.getUserTasks(), ASYNC_RETRY_DELAY)
         } else if (result.type === 'error') {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
+          vm.loading = false
           vm.error = true
           vm.errorData = result.data
         } else {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.async = false
+          vm.loading = false
           vm.error = false
           vm.errorData = null
           vm.tasks = result.data.userTasks
+          vm.loaded = true
         }
-        vm.loading = false
-        vm.loaded = true
       }).catch((e) => {
         if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
         vm.loading = false

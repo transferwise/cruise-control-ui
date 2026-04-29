@@ -208,7 +208,6 @@ export default {
   },
 
   mounted () {
-    this.fetchKccData()
     this.moptions = this.getOptions('test')
   },
 

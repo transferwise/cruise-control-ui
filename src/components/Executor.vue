@@ -15,7 +15,7 @@
     <div v-if='error'>
       <exception :exception='errorData'></exception>
     </div>
-    <div v-if='async'>
+    <div v-else-if='async'>
       <async-task :asyncData='asyncData'></async-task>
     </div>
     <div v-else-if='!loaded && loading'>
@@ -591,19 +591,24 @@ export default {
       if (this.autoRefreshInterval) {
         clearInterval(this.autoRefreshInterval)
         this.autoRefreshInterval = null
-        this.autoRefresh = false
       }
       if (this.asyncRetryTimer) {
         clearTimeout(this.asyncRetryTimer)
         this.asyncRetryTimer = null
       }
       this.getState()
+      if (this.autoRefresh) {
+        this.autoRefreshInterval = setInterval(() => {
+          if (!this.loading) {
+            this.getState()
+          }
+        }, AUTO_REFRESH_INTERVAL)
+      }
     },
     getState () {
       const vm = this
       vm.loading = true
-      // Use fetch with credentials:'omit' to prevent session cookie from being sent.
-      // CC's UserTaskManager maps session cookies to old user tasks, causing stale responses.
+      // Uses fetchCC which sends credentials:'include' for authentication.
       fetchCC(vm.url).then((result) => {
         if (result.type === 'empty') {
           vm.loading = false

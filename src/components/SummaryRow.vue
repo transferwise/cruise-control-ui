@@ -16,6 +16,8 @@
 </template>
 
 <script>
+import fetchCC from '@/fetchCC'
+
 export default {
   name: 'SummaryRow',
   props: [
@@ -27,7 +29,7 @@ export default {
   data () {
     return {
       timer: null,
-      destroyed: true,
+      destroyed: false,
       loaded: false,
       loading: false,
       error: false,
@@ -82,28 +84,26 @@ export default {
       vm.loading = true
       let url = this.url + (this.url.endsWith('/') ? 'kafka_cluster_state' : '/kafka_cluster_state')
       url += (url.indexOf('?') === -1 ? '?' : '&') + 'json=true'
-      window.fetch(url, { credentials: 'omit' }).then((resp) => {
-        const contentType = resp.headers.get('content-type') || ''
-        return resp.text().then((text) => ({ text, contentType, ok: resp.ok, status: resp.status }))
-      }).then((resp) => {
-        let data
-        try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
-        if (data === null || data === undefined || data === '') {
-          vm.error = true
-          vm.errorData = 'CruiseControl sent an empty response with ' + resp.status + ' status code.'
-        } else if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
-          vm.async = true
-          vm.asyncData = data
-        } else if (!resp.ok) {
+      fetchCC(url).then((result) => {
+        if (result.type === 'empty') {
           vm.loading = false
           vm.error = true
-          vm.errorData = data
+          vm.errorData = 'CruiseControl sent an empty response with ' + result.status + ' status code.'
+        } else if (result.type === 'async') {
+          vm.loading = false
+          vm.async = true
+          vm.asyncData = result.data
+        } else if (result.type === 'error') {
+          vm.loading = false
+          vm.error = true
+          vm.errorData = result.data
         } else {
           vm.async = false
           vm.error = false
           vm.errorData = null
           vm.loading = false
           vm.loaded = true
+          const data = result.data
           vm.KafkaPartitionState.offline = data.KafkaPartitionState.offline
           vm.KafkaPartitionState.urp = data.KafkaPartitionState.urp
           vm.KafkaBrokerState.ReplicaCountByBrokerId = data.KafkaBrokerState.ReplicaCountByBrokerId

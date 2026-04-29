@@ -152,9 +152,5 @@ export default new Router({
       ],
       props: true
     }
-  ],
-  beforeEach: function (to, from, next) {
-    store.commit('seturl', to)
-    next()
-  }
+  ]
 })

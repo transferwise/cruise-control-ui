@@ -152,7 +152,7 @@ export default {
       // optimized data
       loadBefore: {},
       loadAfter: {},
-      goals: {},
+      goals: [],
       // show percentage diff
       showpct: false,
       showBrokerLoad: true,
@@ -184,15 +184,6 @@ export default {
     },
     hideHelperURL () {
       return this.$store.state.hideHelperURL
-    },
-    violatedGoals () {
-      const newgoals = []
-      this.goals.forEach((g) => {
-        if (g.goalViolated.match(/VIOLATED/i)) {
-          newgoals.push(g)
-        }
-      })
-      return newgoals
     },
     url () {
       // loadBeforeOptimization is removed and is available only when
@@ -228,9 +219,7 @@ export default {
       const strKeys = [
         'Host'
       ]
-      let allKeys = strKeys
-      allKeys.push(numKeys)
-      allKeys = allKeys.reduce((acc, val) => acc.concat(val), [])
+      const allKeys = [...strKeys, ...numKeys]
       hostnames.forEach((host) => {
         const diff = {}
         numKeys.forEach((key) => {
@@ -284,9 +273,7 @@ export default {
         'BrokerState',
         'Host'
       ]
-      let allKeys = strKeys
-      allKeys.push(numKeys)
-      allKeys = allKeys.reduce((acc, val) => acc.concat(val), [])
+      const allKeys = [...strKeys, ...numKeys]
       brokerids.forEach((broker) => {
         const diff = {}
         numKeys.forEach((key) => {

@@ -37,30 +37,6 @@ export default {
     }
   },
   computed: {
-    changesign () {
-      if (this.numeric) {
-        if (this.cell.before > this.cell.after) {
-          return '+'
-        } else {
-          return ''
-        }
-      } else {
-        return null
-      }
-    },
-    pctclass () {
-      if (this.numeric) {
-        if (this.cell.before > this.cell.after) {
-          return 'text-success'
-        } else if (this.cell.before === this.cell.after) {
-          return 'text-primary'
-        } else {
-          return 'text-danger'
-        }
-      } else {
-        return null
-      }
-    },
     pctchange () {
       if (this.numeric) {
         if (this.cell.before > 0) {

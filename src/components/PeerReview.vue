@@ -106,11 +106,19 @@ export default {
     }
   },
   created () {
-    this.getReviews()
+    this.argsChanged()
   },
   beforeDestroy () {
     if (this.asyncRetryTimer) {
       clearTimeout(this.asyncRetryTimer)
+    }
+  },
+  watch: {
+    group: function (ogroup, ngroup) {
+      this.argsChanged()
+    },
+    cluster: function (ocluster, ncluster) {
+      this.argsChanged()
     }
   },
   methods: {
@@ -137,9 +145,11 @@ export default {
       vm.selectedIds = []
       fetchCC(vm.url).then((result) => {
         if (result.type === 'empty') {
+          vm.loading = false
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with ' + result.status + ' status code.'
         } else if (result.type === 'async') {
+          vm.loading = false
           vm.async = true
           vm.asyncData = result.data
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
@@ -170,7 +180,8 @@ export default {
       vm.$http.post(vm.action_url, null, { withCredentials: true }).then((r) => {
         vm.getReviews()
       }, (e) => {
-        // Failed to submit action
+        vm.error = true
+        vm.errorData = e && e.response ? e.response.data : (e.message || e)
       })
     },
     submitApprovedRequest (r) {

@@ -24,11 +24,14 @@ export default {
   },
   data () {
     return {
+      loading: false,
+      loaded: false,
       error: false,
       errorData: null,
       async: false,
       asyncData: null,
       asyncRetryTimer: null,
+      successTimer: null,
       success: null,
       state: ''
     }
@@ -39,6 +42,9 @@ export default {
   beforeDestroy () {
     if (this.asyncRetryTimer) {
       clearTimeout(this.asyncRetryTimer)
+    }
+    if (this.successTimer) {
+      clearTimeout(this.successTimer)
     }
   },
   watch: {
@@ -91,9 +97,11 @@ export default {
       vm.loading = true
       fetchCC(vm.monitor_url).then((result) => {
         if (result.type === 'empty') {
+          vm.loading = false
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with ' + result.status + ' status code.'
         } else if (result.type === 'async') {
+          vm.loading = false
           vm.async = true
           vm.asyncData = result.data
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
@@ -109,7 +117,7 @@ export default {
           vm.error = false
           vm.errorData = null
           vm.loading = false
-          vm.state = result.data.MonitorState
+          vm.state = result.data.MonitorState.state
           vm.loaded = true
         }
       }).catch((e) => {
@@ -123,9 +131,10 @@ export default {
       const vm = this
       this.$http.post(vm.url, null, { withCredentials: true }).then((r) => {
         vm.success = true
-        window.setTimeout(function () {
+        vm.successTimer = window.setTimeout(function () {
+          vm.successTimer = null
           vm.success = null
-          vm.state = null
+          vm.fetchMonitorState()
         }, 3000)
       }, (e) => {
         vm.error = true

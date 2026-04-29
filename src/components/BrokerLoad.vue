@@ -5,10 +5,10 @@
     <div v-if='error'>
       <exception :exception='errorData'></exception>
     </div>
-    <div v-else-if="loading && !sortedBrokers">
+    <div v-else-if="loading && sortedBrokers.length === 0">
       <div class="text-center p-3"><div class="spinner-border text-primary" role="status"></div> Loading ...</div>
     </div>
-    <div v-else-if='sortedBrokers && sortedBrokers.length > 0'>
+    <div v-else-if='sortedBrokers.length > 0'>
     <div class="form-inline mb-2">
       <input type="text" class="form-control form-control-sm" v-model="filterText" placeholder="Filter by Broker ID, Host, or Rack...">
     </div>
@@ -47,7 +47,7 @@
           <td :class='e.Replicas < 1 ? "table-info" : null'>{{ e.Replicas }}</td>
           <td :class='e.Leaders < 1 ? "table-warning" : null'>{{ e.Leaders }}</td>
           <td>{{ e.DiskMB | formatUnits }}</td>
-          <td>{{ e.CpuPct.toFixed(2) }} %</td>
+          <td>{{ e.CpuPct != null ? e.CpuPct.toFixed(2) : 'N/A' }} %</td>
           <td>{{ e.LeaderNwInRate | formatNetworkUnits }}</td>
           <td>{{ e.FollowerNwInRate | formatNetworkUnits }}</td>
           <td v-if='apiMinorVersion === 2'>{{ e.NwOutRate | formatNetworkUnits }}</td>
@@ -106,7 +106,7 @@ export default {
     apiMinorVersion () {
       // NnwOutRate has been changed to NwOutRate and Upstream
       // API does not expose this correctly.
-      if (this.brokers.length > 0 && Object.prototype.hasOwnProperty.call(this.brokers[0], 'NwOutRate')) {
+      if (this.brokers && this.brokers.length > 0 && Object.prototype.hasOwnProperty.call(this.brokers[0], 'NwOutRate')) {
         return 2
       } else {
         return 1

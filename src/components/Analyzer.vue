@@ -139,13 +139,19 @@ export default {
       if (this.autoRefreshInterval) {
         clearInterval(this.autoRefreshInterval)
         this.autoRefreshInterval = null
-        this.autoRefresh = false
       }
       if (this.asyncRetryTimer) {
         clearTimeout(this.asyncRetryTimer)
         this.asyncRetryTimer = null
       }
       this.getState()
+      if (this.autoRefresh) {
+        this.autoRefreshInterval = setInterval(() => {
+          if (!this.loading) {
+            this.getState()
+          }
+        }, AUTO_REFRESH_INTERVAL)
+      }
     },
     toggleAutoRefresh () {
       if (this.autoRefresh) {

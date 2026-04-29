@@ -16,7 +16,7 @@
     <div v-if='error'>
       <exception :exception='errorData'></exception>
     </div>
-    <div v-if='async'>
+    <div v-else-if='async'>
       <async-task :asyncData='asyncData'></async-task>
     </div>
     <div v-else-if='!loaded && loading'>
@@ -27,7 +27,7 @@
         <div class="card text-center">
           <div class="card-header">Monitor</div>
           <div class="card-body  align-items-center d-flex justify-content-center">
-            <p class="card-text" v-if='MonitorState.state == "LOADING"'><span class="badge badge-info">{{ MonitorState.state }} ({{ MonitorState.loadingProgressPct.toFixed(2) }})</span></p>
+            <p class="card-text" v-if='MonitorState.state == "LOADING"'><span class="badge badge-info">{{ MonitorState.state }} ({{ MonitorState.loadingProgressPct != null ? MonitorState.loadingProgressPct.toFixed(2) : '0.00' }})</span></p>
             <p class="card-text" v-else>
               <span :class="monitor_class">{{ MonitorState.state }}</span>
               <a class='pointer' @click.prevent='doAction()' :title='monitor_title'>&#x23ef;</a>
@@ -37,7 +37,7 @@
         <div class="card text-center">
           <div class="card-header">Training</div>
           <div class="card-body  align-items-center d-flex justify-content-center">
-            <span :class="['badge', MonitorState.trained == 'false' ? 'badge-info': 'badge-success']">{{ MonitorState.trained == 'false' ? 'TRAINING' : 'TRAINED' }} ({{MonitorState.trainingPct.toFixed(2) }} %)</span>
+            <span :class="['badge', !MonitorState.trained ? 'badge-info': 'badge-success']">{{ !MonitorState.trained ? 'TRAINING' : 'TRAINED' }} ({{ MonitorState.trainingPct != null ? MonitorState.trainingPct.toFixed(2) : '0.00' }} %)</span>
           </div>
         </div>
         <div class="card text-center">
@@ -94,8 +94,6 @@ export default {
       errorData: null,
       async: false, // when the server treats this request as async
       asyncData: null, // when the server treats the request as async and sends progress instead of actual response
-      errStopProposalExecution: false, // true when stop proposal execution is success
-      errDataStopProposalExecution: null, // err data of stop proposal execution
       autoRefresh: true,
       autoRefreshInterval: null,
       asyncRetryTimer: null,
@@ -187,13 +185,19 @@ export default {
       if (this.autoRefreshInterval) {
         clearInterval(this.autoRefreshInterval)
         this.autoRefreshInterval = null
-        this.autoRefresh = false
       }
       if (this.asyncRetryTimer) {
         clearTimeout(this.asyncRetryTimer)
         this.asyncRetryTimer = null
       }
       this.getState()
+      if (this.autoRefresh) {
+        this.autoRefreshInterval = setInterval(() => {
+          if (!this.loading) {
+            this.getState()
+          }
+        }, AUTO_REFRESH_INTERVAL)
+      }
     },
     getState () {
       const vm = this
@@ -232,15 +236,13 @@ export default {
     },
     bootstrapMetrics () {
       const vm = this
-      window.fetch(vm.bootstrapUrl, { credentials: 'omit' }).then((resp) => {
-        return resp.json().then((data) => ({ data, ok: resp.ok }))
-      }).then((resp) => {
-        if (resp.ok) {
+      fetchCC(vm.bootstrapUrl).then((result) => {
+        if (result.type === 'error') {
+          vm.error = true
+          vm.errorData = (result.data && result.data.errorMessage) || result.data
+        } else {
           vm.error = false
           vm.errorData = null
-        } else {
-          vm.error = true
-          vm.errorData = resp.data.errorMessage || resp.data
         }
       }).catch((e) => {
         vm.error = true

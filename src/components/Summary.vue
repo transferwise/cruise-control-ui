@@ -25,7 +25,7 @@
         </tr>
       </thead>
       <tbody>
-        <template v-for='(m, k) in config' v-if='selectedGroup === "all" || k === selectedGroup'>
+        <template v-for='(m, k) in config' :key="k" v-if='selectedGroup === "all" || k === selectedGroup'>
           <summary-row v-for='(u, c) in m' :key='k + c + m' :url='u' :cluster='c' :group='k' :timeout='periodicity'></summary-row>
         </template>
       </tbody>
@@ -57,7 +57,7 @@ export default {
   data () {
     return {
       periodicity: 60000,
-      selectedGroup: this.groups ? this.groups[-1] : 'all'
+      selectedGroup: 'all'
     }
   }
 }

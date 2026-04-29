@@ -161,6 +161,12 @@ export default {
       retries = retries || 0
       if (retries > 5) return
       const newurl = this.$store.getters.getnewurl(this.group, this.cluster)
+      if (!newurl) {
+        if (retries < 5) {
+          setTimeout(() => this.argsChanged(retries + 1), 500)
+        }
+        return
+      }
       this.$store.commit('seturl', newurl)
       this.loaded = false
       if (this.asyncRetryTimer) {
@@ -174,9 +180,11 @@ export default {
       vm.loading = true
       fetchCC(vm.url).then((result) => {
         if (result.type === 'empty') {
+          vm.loading = false
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with ' + result.status + ' status code.'
         } else if (result.type === 'async') {
+          vm.loading = false
           vm.async = true
           vm.asyncData = result.data
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)

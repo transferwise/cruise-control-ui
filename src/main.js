@@ -19,6 +19,7 @@ Vue.use(Vuex)
 Vue.component('exception', Exception)
 Vue.component('async-task', AsyncTask)
 
+Axios.defaults.withCredentials = true
 Vue.prototype.$http = Axios
 Vue.prototype.$helpers = Api
 Vue.config.productionTip = false

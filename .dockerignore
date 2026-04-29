@@ -1,2 +1,9 @@
 node_modules
 npm-debug.log
+dist
+.git
+.gitignore
+images
+*.md
+.eslintrc.js
+.babelrc

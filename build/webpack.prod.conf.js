@@ -2,7 +2,6 @@
 
 var path = require('path')
 var utils = require('./utils')
-var webpack = require('webpack')
 var config = require('../config')
 var { merge } = require('webpack-merge')
 var baseWebpackConfig = require('./webpack.base.conf')
@@ -11,8 +10,6 @@ var HtmlWebpackPlugin = require('html-webpack-plugin')
 var MiniCssExtractPlugin = require('mini-css-extract-plugin')
 var CssMinimizerPlugin = require('css-minimizer-webpack-plugin')
 var TerserPlugin = require('terser-webpack-plugin')
-
-var env = config.build.env
 
 var webpackConfig = merge(baseWebpackConfig, {
   mode: 'production',
@@ -28,16 +25,14 @@ var webpackConfig = merge(baseWebpackConfig, {
   devtool: config.build.productionSourceMap ? 'source-map' : false,
   output: {
     path: config.build.assetsRoot,
-    filename: utils.assetsPath('js/[name].js'),
-    chunkFilename: utils.assetsPath('js/[id].js')
+    filename: utils.assetsPath('js/[name].[contenthash:8].js'),
+    chunkFilename: utils.assetsPath('js/[id].[contenthash:8].js')
   },
   optimization: {
     minimizer: [
       new TerserPlugin({
         terserOptions: {
-          compress: {
-            warnings: false
-          }
+          compress: {}
         }
       }),
       new CssMinimizerPlugin()
@@ -57,12 +52,9 @@ var webpackConfig = merge(baseWebpackConfig, {
     }
   },
   plugins: [
-    new webpack.DefinePlugin({
-      'process.env': env
-    }),
     // extract css into its own file
     new MiniCssExtractPlugin({
-      filename: utils.assetsPath('css/[name].css')
+      filename: utils.assetsPath('css/[name].[contenthash:8].css')
     }),
     // generate dist index.html with correct asset hash for caching.
     // you can customize output by editing /index.html

@@ -12,7 +12,7 @@
     <div v-if='error'>
       <exception :exception='errorData'></exception>
     </div>
-    <div v-if='async'>
+    <div v-else-if='async'>
       <async-task :asyncData='asyncData'></async-task>
     </div>
     <div v-else-if='!loaded && loading'>
@@ -29,7 +29,7 @@
               <td>
                 <b v-if='AnomalyDetectorState.selfHealingDisabled.length == 0'>None</b>
                 <ul v-else class="list-group">
-                  <li class="list-group-item" v-for='d in AnomalyDetectorState.selfHealingDisabled'>{{ d }}</li>
+                  <li class="list-group-item" v-for='(d, idx) in AnomalyDetectorState.selfHealingDisabled' :key='idx'>{{ d }}</li>
                 </ul>
               </td>
             </tr>
@@ -38,7 +38,7 @@
               <td>
                 <b v-if='AnomalyDetectorState.selfHealingEnabled.length == 0'>None</b>
                 <ul v-else class="list-group">
-                  <li class="list-group-item" v-for='d in AnomalyDetectorState.selfHealingEnabled'>{{ d }}</li>
+                  <li class="list-group-item" v-for='(d, idx) in AnomalyDetectorState.selfHealingEnabled' :key='idx'>{{ d }}</li>
                 </ul>
               </td>
             </tr>
@@ -56,11 +56,11 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for='r in AnomalyDetectorState.recentBrokerFailures'>
+            <tr v-for='(r, ridx) in AnomalyDetectorState.recentBrokerFailures' :key='ridx'>
               <td>{{ r.detectionMs | formatLocalTime }} ago</td>
               <td>
                 <ul class="list-group">
-                  <li class="list-group-item d-flex justify-content-between align-items-center" v-for="(time, broker) in r.failedBrokersByTimeMs">
+                  <li class="list-group-item d-flex justify-content-between align-items-center" v-for="(time, broker) in r.failedBrokersByTimeMs" :key='broker'>
                     {{ broker }}
                     <span class="badge badge-primary badge-pill">{{ time | formatLocalTime }} ago</span>
                   </li>
@@ -81,24 +81,24 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in AnomalyDetectorState.recentGoalViolations">
+            <tr v-for="(r, ridx) in AnomalyDetectorState.recentGoalViolations" :key='ridx'>
               <td>{{ r.detectionMs | formatLocalTime }} ago</td>
               <td>
                 <!-- Depedning on the version of CC we use, two types of responses are being sent out -->
                 <template v-if='r.hasOwnProperty("violatedGoals")'>
                   <ul class="list-group">
-                    <li class="list-group-item list-group-item-danger" v-for="g in r.violatedGoals">{{ g }}</li>
+                    <li class="list-group-item list-group-item-danger" v-for="(g, gidx) in r.violatedGoals" :key='gidx'>{{ g }}</li>
                   </ul>
                 </template>
                 <template v-else>
                   <h5>Fixable</h5>
                   <ul class="list-group" v-if='r.fixableViolatedGoals.length > 0'>
-                    <li class="list-group-item list-group-item-success" v-for="g in r.fixableViolatedGoals">{{ g }}</li>
+                    <li class="list-group-item list-group-item-success" v-for="(g, gidx) in r.fixableViolatedGoals" :key='gidx'>{{ g }}</li>
                   </ul>
                   <div class="alert alert-info" v-else>None</div>
                   <h5>UnFixable</h5>
                   <ul class="list-group" v-if='r.unfixableViolatedGoals.length > 0'>
-                    <li class="list-group-item list-group-item-danger" v-for="g in r.unfixableViolatedGoals">{{ g }}</li>
+                    <li class="list-group-item list-group-item-danger" v-for="(g, gidx) in r.unfixableViolatedGoals" :key='gidx'>{{ g }}</li>
                   </ul>
                   <div class="alert alert-info" v-else>None</div>
                 </template>
@@ -118,7 +118,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for='r in AnomalyDetectorState.recentMetricAnomalies'>
+            <tr v-for='(r, ridx) in AnomalyDetectorState.recentMetricAnomalies' :key='ridx'>
               <td>{{ r.detectionMs | formatLocalTime }} ago</td>
               <td>{{ r.description }}</td>
             </tr>
@@ -131,7 +131,6 @@
 </template>
 
 <script>
-import BooleanEL from '@/components/BooleanEL'
 import { ASYNC_RETRY_DELAY, ARGS_RETRY_MAX, ARGS_RETRY_DELAY } from '@/constants'
 import fetchCC from '@/fetchCC'
 
@@ -140,9 +139,6 @@ export default {
   props: {
     group: String,
     cluster: String
-  },
-  components: {
-    BooleanEL
   },
   data () {
     return {

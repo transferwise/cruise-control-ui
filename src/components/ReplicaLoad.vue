@@ -37,10 +37,10 @@
         </tr>
       </thead>
       <tbody>
-        <template v-for="rack in racks">
-          <template v-for="host in rack.hosts">
-            <template v-for="broker in host.brokers" v-if='broker.replicas.length > 0'>
-              <template v-for="replica in broker.replicas">
+        <template v-for="rack in racks" :key="rack.rackid">
+          <template v-for="host in rack.hosts" :key="host.name">
+            <template v-for="broker in host.brokers" :key="broker.brokerid" v-if='broker.replicas.length > 0'>
+              <template v-for="replica in broker.replicas" :key="broker.brokerid + '-' + replica.topic + '-' + replica.partition">
                 <tr>
                   <td>{{ rack.rackid }}</td>
                   <td>{{ host.name | formatHost }}</td>
@@ -59,7 +59,7 @@
                 </tr>
               </template>
             </template>
-            <template v-for="broker in host.brokers" v-else>
+            <template v-for="broker in host.brokers" :key="'empty-' + broker.brokerid" v-else>
               <tr>
                 <td>{{ rack.rackid }}</td>
                 <td>{{ host.name | formatHost }}</td>
@@ -146,9 +146,11 @@ export default {
       vm.loading = true
       fetchCC(vm.url).then((result) => {
         if (result.type === 'empty') {
+          vm.loading = false
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with ' + result.status + ' status code.'
         } else if (result.type === 'async') {
+          vm.loading = false
           vm.async = true
           vm.asyncData = result.data
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)

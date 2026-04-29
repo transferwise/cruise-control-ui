@@ -45,7 +45,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for='row in filteredAdminBrokers' :class='brokerRowColor' :key='row.bid'>
+          <tr v-for='row in filteredAdminBrokers' :key='row.bid'>
             <td>{{ row.bid }}</td>
             <td>{{ row.host }}</td>
             <td>{{ row.rack || 'N/A' }}</td>
@@ -713,9 +713,6 @@ export default {
     disableGoals () {
       return this.kafka_assigner || this.use_ready_default_goals
     },
-    brokerRowColor () {
-      return null
-    },
     sortedAdminBrokers () {
       const vm = this
       const rows = Object.keys(vm.KafkaBrokerState.ReplicaCountByBrokerId).map(function (bid) {
@@ -1015,15 +1012,10 @@ export default {
     getBrokerDetails () {
       const vm = this
       const url = vm.$helpers.getURL('load', { allow_capacity_estimation: true })
-      window.fetch(url, { credentials: 'omit' }).then((resp) => {
-        return resp.text().then((text) => ({ text, ok: resp.ok }))
-      }).then((resp) => {
-        if (!resp.ok) return
-        let data
-        try { data = JSON.parse(resp.text) } catch (e) { return }
-        if (data && data.brokers) {
+      fetchCC(url).then((result) => {
+        if (result.type === 'success' && result.data && result.data.brokers) {
           const details = {}
-          data.brokers.forEach(function (b) {
+          result.data.brokers.forEach(function (b) {
             details[b.Broker] = b
           })
           vm.brokerDetails = details
@@ -1063,6 +1055,7 @@ export default {
           vm.errorData = null
           vm.loading = false
           vm.loaded = true
+          vm.showAsyncRefreshButton = false
           const data = result.data
           vm.KafkaBrokerState.ReplicaCountByBrokerId = data.KafkaBrokerState.ReplicaCountByBrokerId
           vm.KafkaBrokerState.OutOfSyncCountByBrokerId = data.KafkaBrokerState.OutOfSyncCountByBrokerId

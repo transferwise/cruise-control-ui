@@ -3,7 +3,8 @@
 /**
  * Shared fetch helper for Cruise Control API calls.
  *
- * Uses window.fetch with credentials:'omit' to avoid stale session cookies.
+ * Uses window.fetch with credentials:'include' so authentication cookies/headers
+ * are sent to Cruise Control (required when CC has auth enabled).
  * Parses the response and categorises it into one of four outcomes:
  *   - empty:   CC returned an empty body
  *   - async:   CC returned a progress / async response (text/plain or has `progress` key)
@@ -15,7 +16,7 @@
  * @returns {Promise<{type: string, data: *, status: number, headers: Headers}>}
  */
 export default function fetchCC (url, options) {
-  const fetchOptions = Object.assign({ credentials: 'omit' }, options)
+  const fetchOptions = Object.assign({ credentials: 'include' }, options)
 
   return window.fetch(url, fetchOptions)
     .then(function (resp) {

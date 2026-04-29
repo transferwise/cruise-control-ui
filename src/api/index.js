@@ -29,16 +29,7 @@ function getURL (type, params) {
   return parsed.toString()
 }
 
-function datafix (v, _default) {
-  if (!v) {
-    return _default
-  } else {
-    return v
-  }
-}
-
 export default {
   getURL,
-  datafix,
   eventBus: new Vue()
 }
