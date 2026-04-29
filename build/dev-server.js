@@ -40,7 +40,9 @@ Object.keys(proxyTable).forEach(function (context) {
   if (typeof options === 'string') {
     options = { target: options }
   }
-  app.use(context, createProxyMiddleware(options))
+  // Use path filter instead of app.use(context, ...) to preserve the full
+  // request path (e.g. /kafkacruisecontrol/state) when forwarding to CC.
+  app.use(createProxyMiddleware({ ...options, pathFilter: context }))
 })
 
 // handle fallback for HTML5 history API

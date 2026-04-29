@@ -147,17 +147,28 @@ export default {
     getReplicaLoad () {
       const vm = this
       vm.loading = true
-      fetchCC(vm.url).then((result) => {
+      const fetchOptions = {}
+      const task = this.$store.getters.getTaskId(vm.url)
+      if (task) {
+        fetchOptions.headers = { 'User-Task-ID': task }
+      }
+      fetchCC(vm.url, fetchOptions).then((result) => {
         if (result.type === 'empty') {
           vm.loading = false
           vm.error = true
           vm.errorData = 'CruiseControl sent an empty response with ' + result.status + ' status code.'
         } else if (result.type === 'async') {
           vm.loading = false
+          const taskId = result.headers.has('user-task-id') ? result.headers.get('user-task-id') : null
+          vm.$store.commit('setTaskId', { url: vm.url, taskid: taskId })
           vm.async = true
           vm.asyncData = result.data
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
-          vm.asyncRetryTimer = setTimeout(() => vm.getReplicaLoad(), ASYNC_RETRY_DELAY)
+          // Only auto-retry if we have a task ID to poll; without one, each
+          // retry starts a new expensive computation on CC.
+          if (taskId) {
+            vm.asyncRetryTimer = setTimeout(() => vm.getReplicaLoad(), ASYNC_RETRY_DELAY)
+          }
         } else if (result.type === 'error') {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.loading = false
@@ -171,6 +182,8 @@ export default {
           vm.errorData = null
           vm.racks = result.data.racks || []
           vm.loaded = true
+          // Clear the cached task ID so the next request fetches fresh data
+          vm.$store.commit('setTaskId', { url: vm.url, taskid: null })
         }
       }).catch((e) => {
         if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }

@@ -284,7 +284,11 @@ export default {
           vm.asyncData = result.data
           vm.showAsyncRefreshButton = true
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
-          vm.asyncRetryTimer = setTimeout(() => vm.getPartitionLoad(), ASYNC_RETRY_DELAY)
+          // Only auto-retry if we have a task ID to poll; without one, each
+          // retry starts a new expensive computation on CC.
+          if (taskId) {
+            vm.asyncRetryTimer = setTimeout(() => vm.getPartitionLoad(), ASYNC_RETRY_DELAY)
+          }
         } else if (result.type === 'error') {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.loading = false
@@ -305,6 +309,8 @@ export default {
             vm.header = ['topic', 'partition', 'leader', 'followers', 'CPU', 'DISK', 'NW_IN', 'NW_OUT', 'MSG_IN']
             vm.colUnits = ['str', 'int', 'int', 'list', 'float', 'float', 'float', 'float', 'int']
           }
+          // Clear the cached task ID so the next refresh fetches fresh data
+          vm.$store.commit('setTaskId', { url: vm.url, taskid: null })
         }
       }).catch((e) => {
         if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }

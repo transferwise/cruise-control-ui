@@ -71,7 +71,7 @@ export default {
       this.brokers = this.rawdata.brokers
       this.hosts = this.rawdata.hosts
     } else {
-      this.getLoad(true)
+      this.argsChanged()
     }
   },
   beforeDestroy () {
@@ -151,7 +151,11 @@ export default {
           vm.asyncData = result.data
           vm.showAsyncRefreshButton = true
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
-          vm.asyncRetryTimer = setTimeout(() => vm.getLoad(), ASYNC_RETRY_DELAY)
+          // Only auto-retry if we have a task ID to poll; without one, each
+          // retry starts a new expensive computation on CC.
+          if (taskId) {
+            vm.asyncRetryTimer = setTimeout(() => vm.getLoad(), ASYNC_RETRY_DELAY)
+          }
         } else if (result.type === 'error') {
           if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
           vm.loading = false
@@ -166,6 +170,9 @@ export default {
           vm.errorData = null
           vm.brokers = result.data.brokers || []
           vm.hosts = result.data.hosts || []
+          // Clear the cached task ID so the next refresh fetches fresh data
+          // instead of returning the cached result for the old task
+          vm.$store.commit('setTaskId', { url: vm.url, taskid: null })
         }
       }).catch((e) => {
         if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }

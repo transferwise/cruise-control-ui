@@ -89,6 +89,12 @@
             <hr>
           </div>
 
+          <!-- ===================== INITIALIZING SECTION ===================== -->
+          <div v-if="isInitializingState" class="alert alert-info text-center">
+            <div class="spinner-border spinner-border-sm text-primary mr-2" role="status"></div>
+            {{ ExecutorState.state | camelCase }} &mdash; preparing execution plan...
+          </div>
+
           <!-- ===================== INTER-BROKER SECTION ===================== -->
           <div v-if="isInterBrokerState || isLeaderMovementState || isStoppingState">
             <h4 class="mt-2 mb-3">Inter-Broker Replica Movement Progress</h4>
@@ -489,8 +495,12 @@ export default {
     isLeaderMovementState () {
       return this.ExecutorState.state === 'LEADER_MOVEMENT_TASK_IN_PROGRESS'
     },
+    isInitializingState () {
+      const s = this.ExecutorState.state
+      return s === 'INITIALIZING_PROPOSAL_EXECUTION' || s === 'GENERATING_PROPOSALS_FOR_EXECUTION'
+    },
     isInProgressState () {
-      return this.isInterBrokerState || this.isIntraBrokerState || this.isStoppingState || this.isLeaderMovementState
+      return this.isInterBrokerState || this.isIntraBrokerState || this.isStoppingState || this.isLeaderMovementState || this.isInitializingState
     },
     parsedTaskReason () {
       const reason = this.ExecutorState.triggeredTaskReason || ''

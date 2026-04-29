@@ -236,6 +236,8 @@ export default {
     fetchKccData () {
       const vm = this
       vm.error = null
+      vm.cachedKccData = []
+      vm.brokerList = []
       const topicMap = {}
       const url = vm.$helpers.getURL('partitionload', {})
       fetchCC(url).then(function (result) {
