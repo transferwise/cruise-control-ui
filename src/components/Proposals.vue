@@ -163,7 +163,7 @@ export default {
     }
   },
   created () {
-    this.getProposals()
+    this.argsChanged()
   },
   beforeDestroy () {
     if (this.asyncRetryTimer) {

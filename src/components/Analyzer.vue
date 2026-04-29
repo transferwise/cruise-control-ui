@@ -94,11 +94,6 @@ export default {
   },
   created () {
     this.argsChanged()
-    this.autoRefreshInterval = setInterval(() => {
-      if (!this.loading) {
-        this.getState()
-      }
-    }, AUTO_REFRESH_INTERVAL)
   },
   beforeDestroy () {
     if (this.autoRefreshInterval) {

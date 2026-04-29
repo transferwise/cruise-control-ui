@@ -112,7 +112,7 @@
       </thead>
       <transition-group name="fade" tag="tbody">
         <tr :key='r.topic + "-" + r.partition' v-for="r in records">
-          <td v-for='(hv, hk) in header'>
+          <td v-for='(hv, hk) in header' :key="hk">
             <template v-if='colUnits[hk] === "float"'>
               {{ r[hv].toFixed(2) }}
             </template>
