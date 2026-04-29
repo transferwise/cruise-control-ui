@@ -16,10 +16,12 @@
  * @returns {Promise<{type: string, data: *, status: number, headers: Headers}>}
  */
 export default function fetchCC (url, options) {
-  // Delete JSESSIONID cookie before each request to prevent CC's UserTaskManager
+  // Delete CC's JSESSIONID cookie before each request to prevent its UserTaskManager
   // from mapping the session to a previous task and returning stale cached results.
-  // This preserves other authentication cookies (e.g. SSO tokens) needed for auth.
+  // We clear on both common context paths so this works regardless of Jetty config,
+  // while leaving any JSESSIONID set by an SSO proxy on a different path untouched.
   document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
+  document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/kafkacruisecontrol'
   const fetchOptions = Object.assign({ credentials: 'include', cache: 'no-store' }, options)
 
   return window.fetch(url, fetchOptions)
