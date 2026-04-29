@@ -5,11 +5,17 @@
     <td colspan=5 v-if='!loaded && loading'>
       <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Loading ...
     </td>
+    <td colspan=5 v-else-if='error'>
+      <span class="text-danger">Error loading data</span>
+    </td>
+    <td colspan=5 v-else-if='!loaded'>
+      <span class="text-muted">Waiting for data...</span>
+    </td>
     <template v-else>
       <td>{{ stats_brokers }}</td>
       <td>{{ stats_leaders }}</td>
       <td>{{ stats_replicas }}</td>
-      <td>{{ Number(stats_replicas / stats_leaders).toFixed(2) }}</td>
+      <td>{{ stats_leaders > 0 ? Number(stats_replicas / stats_leaders).toFixed(2) : 'N/A' }}</td>
       <td>{{ stats_outofsync }}</td>
     </template>
   </tr>

@@ -200,7 +200,7 @@ export default {
         {} // after load
       ]
       const unified = {}
-      if (!this.loadBefore.brokers || !this.loadAfter.brokers) return { heading: [], records: [] }
+      if (!this.loadBefore.brokers || !this.loadAfter.brokers || !this.loadBefore.hosts || !this.loadAfter.hosts) return { heading: [], records: [] }
       // re-key them based on the broker-id
       const hostnames = []
       this.loadBefore.hosts.forEach((rec) => {
@@ -225,18 +225,20 @@ export default {
       ]
       const allKeys = [...strKeys, ...numKeys]
       hostnames.forEach((host) => {
+        const before = hostMap[0][host] || {}
+        const after = hostMap[1][host] || {}
         const diff = {}
         numKeys.forEach((key) => {
           diff[key] = {
-            before: hostMap[0][host][key],
-            after: hostMap[1][host][key],
-            diff: hostMap[0][host][key] - hostMap[1][host][key]
+            before: before[key],
+            after: after[key],
+            diff: (before[key] || 0) - (after[key] || 0)
           }
         })
         strKeys.forEach((key) => {
           diff[key] = {
-            before: hostMap[0][host][key],
-            after: hostMap[1][host][key],
+            before: before[key],
+            after: after[key],
             diff: null
           }
         })
@@ -279,18 +281,20 @@ export default {
       ]
       const allKeys = [...strKeys, ...numKeys]
       brokerids.forEach((broker) => {
+        const before = brokerMap[0][broker] || {}
+        const after = brokerMap[1][broker] || {}
         const diff = {}
         numKeys.forEach((key) => {
           diff[key] = {
-            before: brokerMap[0][broker][key],
-            after: brokerMap[1][broker][key],
-            diff: brokerMap[0][broker][key] - brokerMap[1][broker][key]
+            before: before[key],
+            after: after[key],
+            diff: (before[key] || 0) - (after[key] || 0)
           }
         })
         strKeys.forEach((key) => {
           diff[key] = {
-            before: brokerMap[0][broker][key],
-            after: brokerMap[1][broker][key],
+            before: before[key],
+            after: after[key],
             diff: null
           }
         })
@@ -356,18 +360,19 @@ export default {
           vm.loading = false
           vm.error = false
           const data = result.data
+          // Newer CC versions nest under data.summary; older versions put fields at top level
           const summary = data.summary || data
           vm.numReplicaMovements = summary.numReplicaMovements
           vm.recentWindows = summary.recentWindows
-          vm.dataToMoveMB = summary.dataToMoveMB || summary.intraBrokerDataToMoveMB
+          vm.dataToMoveMB = summary.dataToMoveMB != null ? summary.dataToMoveMB : summary.intraBrokerDataToMoveMB
           vm.monitoredPartitionsPercentage = summary.monitoredPartitionsPercentage
           vm.numLeaderMovements = summary.numLeaderMovements
-          vm.$set(vm, 'loadBefore', data.loadBeforeOptimization)
-          vm.$set(vm, 'loadAfter', data.loadAfterOptimization)
+          vm.$set(vm, 'loadBefore', data.loadBeforeOptimization || {})
+          vm.$set(vm, 'loadAfter', data.loadAfterOptimization || {})
           if (Object.prototype.hasOwnProperty.call(data, 'goalSummary')) {
-            vm.$set(vm, 'goals', data.goalSummary)
+            vm.$set(vm, 'goals', data.goalSummary || [])
           } else {
-            vm.$set(vm, 'goals', data.goals)
+            vm.$set(vm, 'goals', data.goals || [])
           }
           vm.errorData = null
           vm.loaded = true

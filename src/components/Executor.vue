@@ -350,7 +350,6 @@
 </template>
 
 <script>
-import BooleanEL from '@/components/BooleanEL'
 import InterBrokerMovementTable from '@/components/InterBrokerMovementTable'
 import IntraBrokerMovementTable from '@/components/IntraBrokerMovementTable'
 import { AUTO_REFRESH_INTERVAL, ASYNC_RETRY_DELAY, ARGS_RETRY_MAX, ARGS_RETRY_DELAY } from '@/constants'
@@ -422,7 +421,6 @@ export default {
     cluster: String
   },
   components: {
-    BooleanEL,
     InterBrokerMovementTable,
     IntraBrokerMovementTable
   },
@@ -617,6 +615,7 @@ export default {
           vm.loading = false
           vm.async = true
           vm.asyncData = result.data
+          if (vm.autoRefreshInterval) { clearInterval(vm.autoRefreshInterval); vm.autoRefreshInterval = null }
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
           vm.asyncRetryTimer = setTimeout(() => vm.getState(), ASYNC_RETRY_DELAY)
         } else if (result.type === 'error') {
@@ -632,6 +631,11 @@ export default {
           vm.loading = false
           vm.$set(vm, 'ExecutorState', Object.assign(JSON.parse(JSON.stringify(DEFAULT_EXECUTOR_STATE)), result.data.ExecutorState))
           vm.loaded = true
+          if (vm.autoRefresh && !vm.autoRefreshInterval) {
+            vm.autoRefreshInterval = setInterval(() => {
+              if (!vm.loading) { vm.getState() }
+            }, AUTO_REFRESH_INTERVAL)
+          }
         }
       }).catch((e) => {
         if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }

@@ -29,13 +29,13 @@ export default function fetchCC (url, options) {
       let data
       try { data = JSON.parse(resp.text) } catch (e) { data = resp.text }
 
-      if (data === null || data === undefined || data === '') {
-        return { type: 'empty', data, status: resp.status, headers: resp.headers }
-      }
       if (!resp.ok) {
         return { type: 'error', data, status: resp.status, headers: resp.headers }
       }
-      if (resp.contentType.match(/text\/plain/) || (data && data.progress)) {
+      if (data === null || data === undefined || data === '') {
+        return { type: 'empty', data, status: resp.status, headers: resp.headers }
+      }
+      if (resp.contentType.match(/text\/plain/) || (typeof data === 'object' && data !== null && data.progress !== undefined)) {
         return { type: 'async', data, status: resp.status, headers: resp.headers }
       }
       return { type: 'success', data, status: resp.status, headers: resp.headers }

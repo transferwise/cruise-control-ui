@@ -173,8 +173,8 @@
           <div class="row">
             <div class="col-md-4">
               <h6>Choose Goals</h6>
-              <template v-for='g in allGoals.goals' :key='g.goal'>
-              <div class="form-check" v-if='!g.skip && g.group == 1'>
+              <template v-for='g in allGoals.goals'>
+              <div class="form-check" v-if='!g.skip && g.group == 1' :key='g.goal'>
                   <input class="form-check-input" type="checkbox" :value="g.goal" v-model='goals1' :disabled='disable_goals1'>
                   <label class="form-check-label" :title='g.description'>
                     <b v-if='g.hardGoal'>{{ g.goal.replace(/Goal/, '') | splitCamelCase }}</b>
@@ -331,8 +331,8 @@
           <div class="row">
             <div class="col-md-4">
               <h6>Choose Goals</h6>
-              <template v-for='g in allGoals.goals' :key='g.goal'>
-              <div class="form-check" v-if='!g.skip && g.group == 1'>
+              <template v-for='g in allGoals.goals'>
+              <div class="form-check" v-if='!g.skip && g.group == 1' :key='g.goal'>
                   <input class="form-check-input" type="checkbox" :value="g.goal" v-model='goals1' :disabled='disable_goals1'>
                   <label class="form-check-label" :title='g.description'>
                     <b v-if='g.hardGoal'>{{ g.goal.replace(/Goal/, '') | splitCamelCase }}</b>
@@ -459,8 +459,8 @@
           <div class="row">
             <div class="col-md-4">
               <h6>Choose Goals</h6>
-              <template v-for='g in allGoals.goals' :key='g.goal'>
-              <div class="form-check" v-if='!g.skip && g.group == 1'>
+              <template v-for='g in allGoals.goals'>
+              <div class="form-check" v-if='!g.skip && g.group == 1' :key='g.goal'>
                   <input class="form-check-input" type="checkbox" :value="g.goal" v-model='goals1' :disabled='disable_goals1'>
                   <label class="form-check-label" :title='g.description'>
                     <b v-if='g.hardGoal'>{{ g.goal.replace(/Goal/, '') | splitCamelCase }}</b>
@@ -601,7 +601,24 @@
               <button class="btn btn-sm btn-outline-secondary mb-2" @click="showRawResponse = !showRawResponse">
                 {{ showRawResponse ? 'Hide' : 'Show' }} Raw Response
               </button>
-              <pre v-if="showRawResponse" class="bg-light p-2 border" style="max-height:400px;overflow:auto"><code>{{ JSON.stringify(postResponse, null, 2) }}</code></pre>
+              <pre v-if="showRawResponse" class="bg-light p-2 border" style="max-height:400px;overflow:auto;white-space:pre-wrap"><code>{{ typeof postResponse === 'string' ? postResponse : JSON.stringify(postResponse, null, 2) }}</code></pre>
+            </div>
+            <div v-if='!dataParsed && !postError && typeof postResponse === "object"'>
+              <h6>Response Summary</h6>
+              <table class="table table-sm table-bordered">
+                <thead class="thead-light">
+                  <tr>
+                    <th>Key</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(val, key) in flatSummary" :key="key">
+                    <td>{{ key }}</td>
+                    <td>{{ val }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
           <div class='alert alert-success' v-else>
@@ -745,6 +762,19 @@ export default {
           (b.rack && b.rack.toLowerCase().includes(q))
       })
     },
+    flatSummary () {
+      if (!this.postResponse || typeof this.postResponse !== 'object') return {}
+      const result = {}
+      const skip = ['loadBeforeOptimization', 'loadAfterOptimization', 'goalSummary', 'goals', 'summary']
+      Object.keys(this.postResponse).forEach(key => {
+        if (skip.indexOf(key) !== -1) return
+        const val = this.postResponse[key]
+        if (val === null || val === undefined) return
+        if (typeof val === 'object') return
+        result[key] = val
+      })
+      return result
+    },
     actionURL () {
       const vm = this
       // dryrun should always be there in URL
@@ -885,7 +915,7 @@ export default {
 
         return vm.$helpers.getURL('rebalance', params)
       }
-      // console.log(' no url !')
+      return ''
     }
   },
   watch: {
@@ -987,8 +1017,8 @@ export default {
     },
     actionBroker () {
       const vm = this
-      vm.posted = true
       this.clearPostResponse()
+      vm.posted = true
       const params = {
         withCredentials: true
       }
@@ -999,13 +1029,14 @@ export default {
         vm.posted = true
         vm.postError = false
         vm.postResponse = r.data
-        if (r.data && r.data.summary) {
+        const summary = (r.data && r.data.summary) || r.data
+        if (summary && typeof summary === 'object' && (summary.numReplicaMovements != null || summary.numLeaderMovements != null || summary.numIntraBrokerReplicaMovements != null)) {
           vm.dataParsed = true
-          vm.numReplicaMovements = r.data.summary.numReplicaMovements || r.data.summary.numIntraBrokerReplicaMovements
-          vm.numLeaderMovements = r.data.summary.numLeaderMovements
-          vm.recentWindows = r.data.summary.recentWindows
-          vm.dataToMoveMB = r.data.summary.dataToMoveMB || r.data.summary.intraBrokerDataToMoveMB
-          vm.monitoredPartitionsPercentage = r.data.summary.monitoredPartitionsPercentage
+          vm.numReplicaMovements = summary.numReplicaMovements != null ? summary.numReplicaMovements : summary.numIntraBrokerReplicaMovements
+          vm.numLeaderMovements = summary.numLeaderMovements
+          vm.recentWindows = summary.recentWindows
+          vm.dataToMoveMB = summary.dataToMoveMB != null ? summary.dataToMoveMB : summary.intraBrokerDataToMoveMB
+          vm.monitoredPartitionsPercentage = summary.monitoredPartitionsPercentage
         }
       }, (e) => {
         vm.posted = true
@@ -1020,7 +1051,7 @@ export default {
         if (result.type === 'success' && result.data && result.data.brokers) {
           const details = {}
           result.data.brokers.forEach(function (b) {
-            details[b.Broker] = b
+            details[String(b.Broker)] = b
           })
           vm.brokerDetails = details
         }

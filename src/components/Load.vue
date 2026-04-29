@@ -123,7 +123,9 @@ export default {
         clearTimeout(this.asyncRetryTimer)
         this.asyncRetryTimer = null
       }
-      this.getLoad()
+      if (!this.rawdata) {
+        this.getLoad()
+      }
     },
     getLoad () {
       const vm = this
@@ -169,7 +171,7 @@ export default {
         if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
         vm.loading = false
         vm.error = true
-        vm.errorData = e
+        vm.errorData = e.message || e
       })
     }
   },

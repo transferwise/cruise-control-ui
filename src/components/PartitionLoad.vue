@@ -114,10 +114,10 @@
         <tr :key='r.topic + "-" + r.partition' v-for="r in records">
           <td v-for='(hv, hk) in header' :key="hk">
             <template v-if='colUnits[hk] === "float"'>
-              {{ r[hv].toFixed(2) }}
+              {{ r[hv] != null ? r[hv].toFixed(2) : '' }}
             </template>
             <template v-else-if='colUnits[hk] === "int"'>
-              {{ parseInt(r[hv], 10) }}
+              {{ r[hv] != null ? parseInt(r[hv], 10) : '' }}
             </template>
             <template v-else>
               {{ r[hv] }}
@@ -255,7 +255,9 @@ export default {
         clearTimeout(this.asyncRetryTimer)
         this.asyncRetryTimer = null
       }
-      this.getPartitionLoad()
+      if (this.tos) {
+        this.getPartitionLoad()
+      }
     },
     getPartitionLoad () {
       const vm = this

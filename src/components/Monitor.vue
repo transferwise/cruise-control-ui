@@ -37,13 +37,13 @@
         <div class="card text-center">
           <div class="card-header">Training</div>
           <div class="card-body  align-items-center d-flex justify-content-center">
-            <span :class="['badge', !MonitorState.trained ? 'badge-info': 'badge-success']">{{ !MonitorState.trained ? 'TRAINING' : 'TRAINED' }} ({{ MonitorState.trainingPct != null ? MonitorState.trainingPct.toFixed(2) : '0.00' }} %)</span>
+            <span :class="['badge', MonitorState.trained === true ? 'badge-success': 'badge-info']">{{ MonitorState.trained === true ? 'TRAINED' : 'TRAINING' }} ({{ MonitorState.trainingPct != null ? MonitorState.trainingPct.toFixed(2) : '0.00' }} %)</span>
           </div>
         </div>
         <div class="card text-center">
           <div class="card-header">Snapshots</div>
           <div class="card-body">
-            <p class="card-text"><h1 :class="[MonitorState.numMonitoredWindows < 1 ? 'text-info' : 'text-success']">{{ MonitorState.numMonitoredWindows }}</h1></p>
+            <div class="card-text"><h1 :class="[MonitorState.numMonitoredWindows < 1 ? 'text-info' : 'text-success']">{{ MonitorState.numMonitoredWindows }}</h1></div>
           </div>
         </div>
       </div>
@@ -52,19 +52,19 @@
         <div class="card text-center">
           <div class="card-header">Total Kafka Partitions</div>
           <div class="card-body">
-            <p class="card-text"><h1 :class="['text-center', MonitorState.numTotalPartitions < 1 ? 'text-info' : 'text-success']">{{ MonitorState.numTotalPartitions | formatNumber }}</h1></p>
+            <div class="card-text"><h1 :class="['text-center', MonitorState.numTotalPartitions < 1 ? 'text-info' : 'text-success']">{{ MonitorState.numTotalPartitions | formatNumber }}</h1></div>
           </div>
         </div>
         <div class="card text-center">
           <div class="card-header">Valid Kafka Partitions</div>
           <div class="card-body">
-            <p class="card-text"><h1 :class="['text-center', MonitorState.numValidPartitions != MonitorState.numTotalPartitions ? 'text-info' : 'text-success']">{{ MonitorState.numValidPartitions | formatNumber }}</h1></p>
+            <div class="card-text"><h1 :class="['text-center', MonitorState.numValidPartitions != MonitorState.numTotalPartitions ? 'text-info' : 'text-success']">{{ MonitorState.numValidPartitions | formatNumber }}</h1></div>
           </div>
         </div>
         <div class="card text-center">
           <div class="card-header">Flawed Kafka Partitions</div>
           <div class="card-body">
-            <p class="card-text"><h1 :class="['text-center', MonitorState.numFlawedPartitions < 1 ? 'text-success' : 'text-info']">{{ MonitorState.numFlawedPartitions | formatNumber }}</h1></p>
+            <div class="card-text"><h1 :class="['text-center', MonitorState.numFlawedPartitions < 1 ? 'text-success' : 'text-info']">{{ MonitorState.numFlawedPartitions | formatNumber }}</h1></div>
           </div>
         </div>
       </div>
@@ -73,7 +73,6 @@
 </template>
 
 <script>
-import BooleanEL from '@/components/BooleanEL'
 import { AUTO_REFRESH_INTERVAL, ASYNC_RETRY_DELAY, ARGS_RETRY_MAX, ARGS_RETRY_DELAY } from '@/constants'
 import fetchCC from '@/fetchCC'
 
@@ -83,9 +82,7 @@ export default {
     group: String,
     cluster: String
   },
-  components: {
-    BooleanEL
-  },
+  components: {},
   data () {
     return {
       loaded: false,
@@ -120,6 +117,7 @@ export default {
     }
     if (this.autoRefreshInterval) {
       clearInterval(this.autoRefreshInterval)
+      this.autoRefreshInterval = null
     }
     if (this.asyncRetryTimer) {
       clearTimeout(this.asyncRetryTimer)
@@ -210,6 +208,7 @@ export default {
           vm.loading = false
           vm.async = true
           vm.asyncData = result.data
+          if (vm.autoRefreshInterval) { clearInterval(vm.autoRefreshInterval); vm.autoRefreshInterval = null }
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
           vm.asyncRetryTimer = setTimeout(() => vm.getState(), ASYNC_RETRY_DELAY)
         } else if (result.type === 'error') {
@@ -223,8 +222,14 @@ export default {
           vm.error = false
           vm.errorData = null
           vm.loading = false
-          vm.$set(vm, 'MonitorState', result.data.MonitorState)
+          const defaults = { trainingPct: 0, trained: false, numFlawedPartitions: 0, monitoredWindows: {}, state: null, numTotalPartitions: 0, numMonitoredWindows: 0, monitoringCoveragePct: 0, numValidPartitions: 0 }
+          vm.$set(vm, 'MonitorState', Object.assign(defaults, result.data.MonitorState))
           vm.loaded = true
+          if (vm.autoRefresh && !vm.autoRefreshInterval) {
+            vm.autoRefreshInterval = setInterval(() => {
+              if (!vm.loading) { vm.getState() }
+            }, AUTO_REFRESH_INTERVAL)
+          }
         }
       }).catch((e) => {
         if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }
@@ -235,7 +240,7 @@ export default {
     },
     bootstrapMetrics () {
       const vm = this
-      fetchCC(vm.bootstrapUrl).then((result) => {
+      fetchCC(vm.bootstrapUrl, { method: 'POST' }).then((result) => {
         if (result.type === 'error') {
           vm.error = true
           vm.errorData = (result.data && result.data.errorMessage) || result.data

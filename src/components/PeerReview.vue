@@ -45,7 +45,7 @@
               <!-- {{ reconstructURL(r.EndpointWithParams, r.Id) }} -->
               {{ r.EndpointWithParams }}</td>
             <td>
-              <template v-if='r.Status.match(/PENDING_REVIEW/)'>
+              <template v-if='r.Status && r.Status.match(/PENDING_REVIEW/)'>
                 <input type='checkbox' v-model='selectedIds' :value='r.Id'>
               </template>
             </td>
@@ -99,7 +99,7 @@ export default {
       argsRetryTimer: null,
       asyncRetryTimer: null,
       selectedIds: [],
-      actionName: null,
+      actionName: '',
       actionReason: '',
       reviews: [],
       posted: false,
@@ -180,10 +180,11 @@ export default {
       })
     },
     doAction () {
+      if (!this.actionName) return
       const vm = this
       vm.$http.post(vm.action_url, null, { withCredentials: true }).then((r) => {
         vm.getReviews()
-      }, (e) => {
+      }).catch((e) => {
         vm.error = true
         vm.errorData = e && e.response ? e.response.data : (e.message || e)
       })
@@ -215,9 +216,10 @@ export default {
     },
     reconstructURL (u, id) {
       const url = this.$store.state.url
-      const parsed = parse(url + u)
-      const params = { review_id: id }
-      parsed.set('query', params)
+      const parsed = parse(url + u, true)
+      const existing = parsed.query || {}
+      existing.review_id = id
+      parsed.set('query', existing)
       return parsed.toString()
     },
     clearPostResponse () {

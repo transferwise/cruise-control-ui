@@ -1,6 +1,6 @@
 <!-- Copyright 2017-2019 LinkedIn Corp. Licensed under the BSD 2-Clause License (the "License"). See License in the project root for license information. -->
 <template>
-  <div v-if="!group || !cluster">
+  <div v-if="!group || !cluster || (group === 'a' && cluster === 'b')">
     <div class="alert alert-info">
       <h3>Hi There !</h3>
       <p>To get started, please select one cluster from the top navigation.</p>

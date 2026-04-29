@@ -42,13 +42,13 @@
         <div class="card text-center">
           <div class="card-header">Avg RF.</div>
           <div class="card-body">
-            <h1 :class="['card-text', stats_replicas / stats_leaders >= 3 ? 'text-success' : 'text-info']">{{ Number(stats_replicas / stats_leaders).toFixed(2) }}</h1>
+            <h1 :class="['card-text', stats_leaders > 0 && stats_replicas / stats_leaders >= 3 ? 'text-success' : 'text-info']">{{ stats_leaders > 0 ? Number(stats_replicas / stats_leaders).toFixed(2) : 'N/A' }}</h1>
           </div>
         </div>
         <div class="card text-center">
           <div class="card-header">Out Of Sync Replicas</div>
           <div class="card-body">
-            <h1 :class="['card-text', !stats_outofsync > 0 ? 'text-success' : 'text-danger']">{{ stats_outofsync }}</h1>
+            <h1 :class="['card-text', stats_outofsync === 0 ? 'text-success' : 'text-danger']">{{ stats_outofsync }}</h1>
           </div>
         </div>
       </div>

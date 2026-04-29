@@ -37,35 +37,33 @@
         </tr>
       </thead>
       <tbody>
-        <template v-for="rack in racks" :key="rack.rackid">
-          <template v-for="host in rack.hosts" :key="host.name">
-            <template v-for="broker in host.brokers" :key="broker.brokerid" v-if='broker.replicas.length > 0'>
-              <template v-for="replica in broker.replicas" :key="broker.brokerid + '-' + replica.topic + '-' + replica.partition">
-                <tr>
+        <template v-for="rack in racks">
+          <template v-for="host in rack.hosts">
+            <template v-for="broker in host.brokers">
+              <tr v-if='!broker.replicas || broker.replicas.length === 0' :key="'empty-' + rack.rackid + '-' + broker.brokerid">
+                <td>{{ rack.rackid }}</td>
+                <td>{{ host.name | formatHost }}</td>
+                <td>{{ broker.brokerid }}</td>
+                <td colspan=6 class='alert alert-warning text-center'>No replica details available.</td>
+              </tr>
+              <template v-else v-for="replica in broker.replicas">
+                <tr :key="broker.brokerid + '-' + replica.topic + '-' + replica.partition">
                   <td>{{ rack.rackid }}</td>
                   <td>{{ host.name | formatHost }}</td>
                   <td>{{ broker.brokerid }}</td>
                   <td>{{ replica.topic + '-' + replica.partition }}</td>
                   <td>{{ replica.isLeader }}</td>
-                  <template v-if='replica.load && replica.load.snapshots'>
+                  <template v-if='replica.load && replica.load.snapshots && replica.load.snapshots.length > 0'>
                   <td>{{ replica.load.snapshots[0].disk | formatUnits }}</td>
                   <td>{{ replica.load.snapshots[0].cpu.toFixed(0) }}</td>
-                  <td>{{ replica.load.snapshots[0].networkOutbound | formatNetworkUnits }}</td>
                   <td>{{ replica.load.snapshots[0].networkInbound | formatNetworkUnits }}</td>
+                  <td>{{ replica.load.snapshots[0].networkOutbound | formatNetworkUnits }}</td>
                   </template>
                   <template v-else>
                   <td colspan=6 class='alert alert-warning text-center'>No Load data available.</td>
                   </template>
                 </tr>
               </template>
-            </template>
-            <template v-for="broker in host.brokers" :key="'empty-' + broker.brokerid" v-else>
-              <tr>
-                <td>{{ rack.rackid }}</td>
-                <td>{{ host.name | formatHost }}</td>
-                <td>{{ broker.brokerid }}</td>
-                <td colspan=6 class='alert alert-warning text-center'>No replica details available.</td>
-              </tr>
             </template>
           </template>
         </template>
@@ -86,7 +84,6 @@ export default {
   },
   data () {
     return {
-      stopRefresh: false,
       loading: false,
       loaded: false,
       error: false,
@@ -143,7 +140,9 @@ export default {
         clearTimeout(this.asyncRetryTimer)
         this.asyncRetryTimer = null
       }
-      this.getReplicaLoad()
+      if (this.tos) {
+        this.getReplicaLoad()
+      }
     },
     getReplicaLoad () {
       const vm = this

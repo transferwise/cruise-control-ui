@@ -23,10 +23,10 @@ module.exports = {
     new ESLintPlugin({
       extensions: ['js', 'vue'],
       context: resolve('src'),
-      failOnError: false,
+      failOnError: true,
       failOnWarning: false,
       emitWarning: true,
-      emitError: false
+      emitError: true
     }),
     new VueLoaderPlugin()
   ],

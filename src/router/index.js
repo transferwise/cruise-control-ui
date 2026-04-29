@@ -20,7 +20,6 @@ import UserTasks from '@/components/UserTasks'
 import ConfigInsights from '@/components/ConfigInsights'
 import ResourceDistribution from '@/components/ResourceDistribution'
 import PeerReview from '@/components/PeerReview'
-import store from '@/store'
 import Summary from '@/components/Summary'
 
 Vue.use(Router)

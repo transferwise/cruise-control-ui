@@ -150,7 +150,7 @@ export default {
           vm.loading = false
           vm.error = false
           vm.errorData = null
-          vm.tasks = result.data.userTasks
+          vm.tasks = result.data.userTasks || []
           vm.loaded = true
         }
       }).catch((e) => {

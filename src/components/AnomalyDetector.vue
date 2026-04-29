@@ -229,7 +229,8 @@ export default {
           vm.error = false
           vm.errorData = null
           vm.loading = false
-          vm.$set(vm, 'AnomalyDetectorState', result.data.AnomalyDetectorState)
+          const defaults = { selfHealingDisabled: [], selfHealingEnabled: [], recentBrokerFailures: [], recentMetricAnomalies: [], recentGoalViolations: [] }
+          vm.$set(vm, 'AnomalyDetectorState', Object.assign(defaults, result.data.AnomalyDetectorState))
           vm.loaded = true
         }
       }).catch((e) => {

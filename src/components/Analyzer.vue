@@ -99,6 +99,7 @@ export default {
   beforeDestroy () {
     if (this.autoRefreshInterval) {
       clearInterval(this.autoRefreshInterval)
+      this.autoRefreshInterval = null
     }
     if (this.argsRetryTimer) {
       clearTimeout(this.argsRetryTimer)
@@ -178,6 +179,7 @@ export default {
           vm.loading = false
           vm.async = true
           vm.asyncData = result.data
+          if (vm.autoRefreshInterval) { clearInterval(vm.autoRefreshInterval); vm.autoRefreshInterval = null }
           if (vm.asyncRetryTimer) clearTimeout(vm.asyncRetryTimer)
           vm.asyncRetryTimer = setTimeout(() => vm.getState(), ASYNC_RETRY_DELAY)
         } else if (result.type === 'error') {
@@ -191,8 +193,14 @@ export default {
           vm.error = false
           vm.errorData = null
           vm.loading = false
-          vm.$set(vm, 'AnalyzerState', result.data.AnalyzerState)
+          const defaults = { isProposalReady: false, readyGoals: [], goalReadiness: [] }
+          vm.$set(vm, 'AnalyzerState', Object.assign(defaults, result.data.AnalyzerState))
           vm.loaded = true
+          if (vm.autoRefresh && !vm.autoRefreshInterval) {
+            vm.autoRefreshInterval = setInterval(() => {
+              if (!vm.loading) { vm.getState() }
+            }, AUTO_REFRESH_INTERVAL)
+          }
         }
       }).catch((e) => {
         if (vm.asyncRetryTimer) { clearTimeout(vm.asyncRetryTimer); vm.asyncRetryTimer = null }

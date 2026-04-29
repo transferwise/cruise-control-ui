@@ -20,22 +20,11 @@
 </template>
 
 <script>
-import Monitor from '@/components/Monitor'
-import Analyzer from '@/components/Analyzer'
-import Executor from '@/components/Executor'
-import AnomalyDetector from '@/components/AnomalyDetector'
-
 export default {
   name: 'State',
   props: {
     group: String,
     cluster: String
-  },
-  components: {
-    monitor: Monitor,
-    analyzer: Analyzer,
-    executor: Executor,
-    'anomaly-detector': AnomalyDetector
   }
 }
 </script>

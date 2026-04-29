@@ -21,7 +21,7 @@
                 <tr v-if='records.length === 0'>
                     <td colspan=5>No records in <code>config.csv</code></td>
                 </tr>
-                <tr v-for='(r, k) in records' :key='r[3]' v-else>
+                <tr v-for='r in records' :key='r[3]' v-else>
                     <td>{{ r[0] }} </td>
                     <td>{{ r[1] }} </td>
                     <td>{{ r[2] }} </td>

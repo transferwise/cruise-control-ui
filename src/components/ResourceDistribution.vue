@@ -104,6 +104,7 @@
 <script>
 import LineChart from '@/components/LineChart.vue'
 import { ARGS_RETRY_MAX, ARGS_RETRY_DELAY } from '@/constants'
+import fetchCC from '@/fetchCC'
 
 class Topic {
   constructor () {
@@ -180,7 +181,7 @@ export default {
       resource: 'leaders',
       stacked: false,
       filter: '',
-      cachedKccData: null,
+      cachedKccData: [],
       async: false,
       asyncData: null,
       argsRetryTimer: null,
@@ -232,40 +233,39 @@ export default {
       }
       this.fetchKccData()
     },
-    cacheKccDataItem (item) {
-      if (!this.cachedKccData.has(item.topic)) {
-        this.cachedKccData.set(item.topic, new Topic())
-      }
-      this.cachedKccData.get(item.topic).addLeader(item)
-      this.cachedKccData.get(item.topic).addReplicas(item)
-      this.cachedKccData.get(item.topic).countCpu(item)
-      this.cachedKccData.get(item.topic).countDisk(item)
-      this.cachedKccData.get(item.topic).replicationFactor = Math.max(this.cachedKccData.get(item.topic).replicationFactor, item.followers.length + 1)
-    },
     fetchKccData () {
-      this.cachedKccData = new Map()
-      this.$http
-        .get(this.$helpers.getURL('partitionload', {}))
-        .then(response => {
-          const brokerList = new Set()
-          for (const record of response.data.records) {
-            this.cacheKccDataItem(record)
-            brokerList.add(record.leader, ...record.followers)
+      const vm = this
+      vm.error = null
+      const topicMap = {}
+      const url = vm.$helpers.getURL('partitionload', {})
+      fetchCC(url).then(function (result) {
+        if (result.type === 'error') {
+          vm.error = result.data
+          return
+        }
+        if (result.type !== 'success' || !result.data || !result.data.records) {
+          return
+        }
+        const brokerList = new Set()
+        for (const record of result.data.records) {
+          if (!topicMap[record.topic]) {
+            topicMap[record.topic] = new Topic()
           }
-          this.brokerList = [...brokerList].sort()
-        })
-        .then(e => {
-          this.cachedKccData = new Map([...this.cachedKccData.entries()].sort((a, b) => {
-            if (a[1].disk > b[1].disk) {
-              return -1
-            }
-            return 1
-          }))
-        })
-        .catch(error => {
-          if (this.asyncRetryTimer) { clearTimeout(this.asyncRetryTimer); this.asyncRetryTimer = null }
-          this.error = error && error.response ? error.response.data : error
-        })
+          const topic = topicMap[record.topic]
+          topic.addLeader(record)
+          topic.addReplicas(record)
+          topic.countCpu(record)
+          topic.countDisk(record)
+          topic.replicationFactor = Math.max(topic.replicationFactor, record.followers.length + 1)
+          brokerList.add(record.leader)
+          record.followers.forEach(f => brokerList.add(f))
+        }
+        vm.brokerList = [...brokerList].sort()
+        vm.cachedKccData = Object.entries(topicMap)
+          .sort((a, b) => a[1].disk > b[1].disk ? -1 : 1)
+      }).catch(function (error) {
+        vm.error = error && error.message ? error.message : error
+      })
     },
     formatItemData (item) {
       const resources = item[1][this.resource]
@@ -316,7 +316,7 @@ export default {
         datasets: []
       }
 
-      if (this.cachedKccData === null) {
+      if (!this.cachedKccData || this.cachedKccData.length === 0) {
         return stackedKccData
       }
 
