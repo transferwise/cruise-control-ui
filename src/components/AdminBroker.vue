@@ -128,6 +128,10 @@
             </div>
           </div>
         </div>
+        <div class="form-group mt-2">
+          <label>Reason:</label>
+          <input class="form-control" type='text' v-model='reason' placeholder='Reason for this action (optional)'>
+        </div>
         <div class="text-right">
           <button @click='actionBroker' class="btn btn-primary">Run PLE</button>
         </div>
@@ -144,6 +148,16 @@
               <label class="form-check-label">DryRun</label>
             </div>
           </div>
+          <div class="col-md-4">
+            <div class="form-inline">
+              <label class="form-label">Intra-Broker Replication Throttle (bytes/sec):</label>
+              <input class="form-control" type='number' min=1 v-model='intra_broker_replication_throttle' placeholder='(CC Default)'>
+            </div>
+          </div>
+        </div>
+        <div class="form-group mt-2">
+          <label>Reason:</label>
+          <input class="form-control" type='text' v-model='reason' placeholder='Reason for this rebalance (optional)'>
         </div>
         <div class="text-right">
           <button @click='actionBroker' class="btn btn-primary">Run Broker Disk Rebalance</button>
@@ -264,6 +278,10 @@
             </div>
           </div>
           </template>
+          <div class="form-group mt-2">
+            <label>Reason:</label>
+            <input class="form-control" type='text' v-model='reason' placeholder='Reason for this rebalance (optional)'>
+          </div>
           <div class="text-right">
             <button @click.prevent='actionBroker' class="btn btn-primary" v-if='!showAdvanced'>Execute Rebalance With Default Options</button>
             <button @click.prevent='actionBroker' class="btn btn-primary" v-else>Execute Rebalance</button>
@@ -302,6 +320,10 @@
                 </label>
               </div>
             </div>
+          </div>
+          <div class="form-group mt-2">
+            <label>Reason:</label>
+            <input class="form-control" type='text' v-model='reason' placeholder='Reason for this action (optional)'>
           </div>
           <div class="text-right">
             <button @click='actionBroker' class="btn btn-primary">Demote Brokers {{ selectedBrokers }}</button>
@@ -430,6 +452,10 @@
             </div>
           </div>
           </template>
+          <div class="form-group mt-2">
+            <label>Reason:</label>
+            <input class="form-control" type='text' v-model='reason' placeholder='Reason for this action (optional)'>
+          </div>
           <div class="text-right">
             <button @click.prevent='actionBroker' class="btn btn-primary" v-if='!showAdvanced'>Remove Brokers {{ selectedBrokers }} With Default Options</button>
             <button @click.prevent='actionBroker' class="btn btn-primary" v-else>Remove Brokers {{ selectedBrokers }}</button>
@@ -557,6 +583,10 @@
             </div>
           </div>
           </template>
+          <div class="form-group mt-2">
+            <label>Reason:</label>
+            <input class="form-control" type='text' v-model='reason' placeholder='Reason for this action (optional)'>
+          </div>
           <div class="text-right">
             <button @click.prevent='actionBroker' class="btn btn-primary" v-if='!showAdvanced'>Add Brokers {{ selectedBrokers }} With Default Options</button>
             <button @click.prevent='actionBroker' class="btn btn-primary" v-else>Add Brokers {{ selectedBrokers }}</button>
@@ -699,6 +729,8 @@ export default {
       concurrent_partition_movements_per_broker: null, // Check CC Documentation
       concurrent_leader_movements: null, // Check CC Documentation
       replication_throttle: null, // Check CC Documentation
+      intra_broker_replication_throttle: null, // Check CC Documentation
+      reason: '', // Check CC Documentation
       throttle_removed_broker: false, // Check CC Documentation
       throttle_added_broker: false, // Check CC Documentation
       // workflow
@@ -780,6 +812,9 @@ export default {
       // dryrun should always be there in URL
       const params = {
         dryrun: vm.dryrun
+      }
+      if (vm.reason && vm.reason.length > 0) {
+        params.reason = vm.reason
       }
       if (vm.actionName === 'remove' || vm.actionName === 'add' || vm.actionName === 'demote') {
         if (vm.selectedBrokers) {
@@ -911,7 +946,12 @@ export default {
         // POST /kafkacruisecontrol/rebalance
         // ?dryrun=[true/false]
         // ?rebalance_disk=true
+        // ?intra_broker_replication_throttle=[throttle]
+        // ?reason=[reason]
         params.rebalance_disk = 'true'
+        if (vm.intra_broker_replication_throttle) {
+          params.intra_broker_replication_throttle = vm.intra_broker_replication_throttle
+        }
 
         return vm.$helpers.getURL('rebalance', params)
       }
@@ -961,6 +1001,8 @@ export default {
         this.concurrent_partition_movements_per_broker = null
         this.concurrent_leader_movements = null
         this.replication_throttle = null
+        this.intra_broker_replication_throttle = null
+        this.reason = ''
       }
     },
     group: function (ogroup, ngroup) {
@@ -1019,12 +1061,16 @@ export default {
       const vm = this
       this.clearPostResponse()
       vm.posted = true
+      vm.doPost(vm.actionURL)
+    },
+    doPost (url, retried) {
+      const vm = this
       const params = {
         withCredentials: true
       }
       // User-Task-ID header is only for polling async GET requests, not for initiating new POST actions.
       // Sending a stale task ID on a new POST causes CC to reject with "Unexpected header" error.
-      this.$http.post(vm.actionURL, null, params).then((r) => {
+      this.$http.post(url, null, params).then((r) => {
         vm.detectedUserTaskId = Object.prototype.hasOwnProperty.call(r.headers, 'user-task-id')
         vm.posted = true
         vm.postError = false
@@ -1032,16 +1078,25 @@ export default {
         const summary = (r.data && r.data.summary) || r.data
         if (summary && typeof summary === 'object' && (summary.numReplicaMovements != null || summary.numLeaderMovements != null || summary.numIntraBrokerReplicaMovements != null)) {
           vm.dataParsed = true
-          vm.numReplicaMovements = summary.numReplicaMovements != null ? summary.numReplicaMovements : summary.numIntraBrokerReplicaMovements
+          vm.numReplicaMovements = (summary.numReplicaMovements || summary.numIntraBrokerReplicaMovements) || 0
           vm.numLeaderMovements = summary.numLeaderMovements
           vm.recentWindows = summary.recentWindows
-          vm.dataToMoveMB = summary.dataToMoveMB != null ? summary.dataToMoveMB : summary.intraBrokerDataToMoveMB
+          vm.dataToMoveMB = (summary.dataToMoveMB || summary.intraBrokerDataToMoveMB) || 0
           vm.monitoredPartitionsPercentage = summary.monitoredPartitionsPercentage
         }
       }, (e) => {
+        const errData = e && e.response ? e.response.data : null
+        const errMsg = typeof errData === 'string' ? errData : (errData && errData.errorMessage) || ''
+        // If CC doesn't support intra_broker_replication_throttle, retry without it (once)
+        if (!retried && e && e.response && e.response.status === 400 && errMsg.indexOf('intra_broker_replication_throttle') !== -1) {
+          const retryUrl = url.replace(/([?&])intra_broker_replication_throttle=[^&]*&?/, '$1').replace(/[?&]$/, '')
+          vm.intra_broker_replication_throttle = null
+          vm.doPost(retryUrl, true)
+          return
+        }
         vm.posted = true
         vm.postError = true
-        vm.postResponse = e && e.response ? e.response.data : e
+        vm.postResponse = errData || e
       })
     },
     getBrokerDetails () {

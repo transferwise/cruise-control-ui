@@ -265,6 +265,9 @@
             </div>
             <!-- Stopping state: intra-broker cancelled/in-progress/aborting counts -->
             <div v-if="isStoppingState">
+              <div v-if="ExecutorState.numInProgressIntraBrokerPartitionMovements" class="alert alert-warning">
+                Waiting for {{ ExecutorState.numInProgressIntraBrokerPartitionMovements }} in-progress intra-broker disk move(s) to complete
+              </div>
               <table class="table table-bordered mb-3">
                 <thead class="thead-light">
                   <tr>

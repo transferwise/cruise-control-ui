@@ -24,6 +24,7 @@
         <select class="form-control form-control-sm" v-model="statusFilter">
           <option value="">All Statuses</option>
           <option value="Active">Active</option>
+          <option value="InExecution">InExecution</option>
           <option value="Completed">Completed</option>
           <option value="CompletedWithError">CompletedWithError</option>
         </select>

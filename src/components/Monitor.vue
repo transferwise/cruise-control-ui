@@ -240,17 +240,19 @@ export default {
     },
     bootstrapMetrics () {
       const vm = this
-      fetchCC(vm.bootstrapUrl, { method: 'POST' }).then((result) => {
+      fetchCC(vm.bootstrapUrl).then((result) => {
         if (result.type === 'error') {
           vm.error = true
           vm.errorData = (result.data && result.data.errorMessage) || result.data
         } else {
           vm.error = false
           vm.errorData = null
+          alert('Bootstrap started, cruise control will now start to read historical metrics to get to ready state, please be patient')
         }
       }).catch((e) => {
         vm.error = true
         vm.errorData = e.message || e
+        alert(e.message || e)
       })
     },
     toggleAutoRefresh () {
